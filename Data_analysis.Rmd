@@ -481,6 +481,59 @@ I want to now apply this predictive map to see which populations are most at ris
 Firstly, I will look at general populations at risk.
 
 ```{r Populations at high risk of terrorist attacks}
+# Ensuring my population raster has the same resolution/extent as my binary raster
+population_resampled <- resample(population, suitability_attacks, method = "bilinear")
 
+# Masking the population raster with the binary raster to obtain only high risk areas
+population_at_risk <- mask(population_resampled, suitability_attacks, maskvalue = 1)
+
+# Calculating the total population at risk
+total_population_at_risk <- cellStats(population_at_risk, stat = 'sum', na.rm = TRUE)
+
+# Print this number 
+print(total_population_at_risk)
+
+# Visualising this 
+tm_shape(population_at_risk) +
+  tm_raster(title = "Population at Risk", palette = "-viridis") +
+  tm_shape(borno) + 
+  tm_polygons(alpha = 0, border.col = "black") +
+  tm_layout(main.title = "Population at Risk", main.title.position = c(0, 0), title.size = 3, fontfamily = "Avenir") +
+  tm_scale_bar(position = c(0.02, 0.02), text.size = 1, breaks = c(0, 100, 200, 300)) +
+  tm_compass(north = 0, type = 'arrow', position = c('right', 'top'), text.size = 0.9)
+```
+Now I want to look at the percentage of each LGAs population who are at risk of terrorist attacks so I can consider relative risk across the state.
+
+```{r Population percentage at risk}
+# Ensure CRS of LGAs and binary raster match
+crs(borno_LGAs) <- crs(suitability_attacks)
+
+# Calculating the total population at risk for each LGA
+LGA_risk <- extract(population_at_risk, borno_LGAs, fun = sum, na.rm = TRUE, df = TRUE)
+LGA_pop <- extract(population_resampled, borno_LGAs, fun = sum, na.rm = TRUE, df = TRUE)
+
+# Combining the data into one data frame
+LGA_data <- data.frame(
+  LGA_ID = borno_LGAs@data$LGA_ID,
+  Total_Population = lga_total_pop[, 2],
+  Population_At_Risk = lga_pop_at_risk[, 2]
+)
+
+# Calculating the percentage of population at risk
+lga_data <- lga_data %>%
+  mutate(Percentage_At_Risk = (Population_At_Risk / Total_Population) * 100)
+
+# Merging the calculated data back with the LGA shapefile
+lga_boundaries@data <- merge(lga_boundaries@data, lga_data, by.x = "LGA_ID", by.y = "LGA_ID")
+
+# Plotting results
+tm_shape(lga_boundaries) +
+  tm_polygons(col = "Percentage_At_Risk", palette = "-RdYlBu", title = "Percentage at Risk",
+              style = "cont", border.col = "black", lwd = 0.5) +
+  tm_layout(main.title = "Percentage of Population at Risk by LGA", 
+            main.title.position = c("center", "top"), 
+            title.size = 1.5, fontfamily = "Avenir") +
+  tm_scale_bar(position = c("left", "bottom")) +
+  tm_compass(position = c("right", "top"))
 ```
 
