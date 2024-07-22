@@ -1,0 +1,424 @@
+# Dissertation part 2: Data analysis
+
+Part 2 contains the primary analysis portion of my dissertation. The aim of this analysis is to assert which factors impact terrorist attack occurrence using logistic regression, before combining these factors into a stack and employing the Maximum Entropy Model (MAXENT) to infer areas at risk of terrorist attacks given predictor variables.
+
+## Preparing factor data thought to influence attack risk
+
+For my model I will be dealing with point occurrence data of terrorist attacks in Borno state from 2010 to 2020 as well as raster data for each predictor variable. 
+
+```{r Loading factor data}
+population <- raster('nga_ppp_2020_1km_Aggregated.tif')
+male_literacy <- raster('NGA_literacy_M.tif')
+female_literacy <- raster('NGA_literacy_F.tif')
+school_children <-raster('NGA_F_M_SECONDARY_2020_1km.tif')
+poverty <- raster('nga10povcons125.tif')
+urban_rural <- raster('nga_bsgme_v0a_100m_2020.tif')
+topography <- raster('nga_srtm_topo_100m.tif')
+roads <- raster('nga_osm_dst_road_100m_2016.tif')
+education_facilities <- raster('educational_facilities_raster.tif')
+mosques <- raster('mosques_Raster.tif')
+```
+
+```{r Clipping, reprojecting and resampling my rasters}
+# Preparing my extents
+borno_extent <- extent(borno)
+pcs <- CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs+ towgs84=0,0,0")
+
+# Function to clip, mask, and project a raster
+process_raster <- function(raster, extent, outline, crs) {
+  clipped <- crop(raster, extent)
+  masked <- mask(clipped, outline)
+  projected <- projectRaster(masked, crs=crs)
+  return(projected)
+}
+
+# Apply the function to each raster variable
+population_processed <- process_raster(population, borno_extent, borno, pcs)
+male_literacy_processed <- process_raster(male_literacy, borno_extent, borno, pcs)
+female_literacy_processed <- process_raster(female_literacy, borno_extent, borno, pcs)
+school_children_processed <- process_raster(school_children, borno_extent, borno, pcs)
+poverty_processed <- process_raster(poverty, borno_extent, borno, pcs)
+urban_rural_processed <- process_raster(urban_rural, borno_extent, borno, pcs)
+topography_processed <- process_raster(topography, borno_extent, borno, pcs)
+roads_processed <- process_raster(roads, borno_extent, borno, pcs)
+education_facilities_processed <- process_raster(education_facilities, borno_extent, borno, pcs)
+mosques_processed <- process_raster(mosques, borno_extent, borno, pcs)
+
+# Standardize all rasters to dimensions of approx. 2.5 km (area = 21 sq.km)
+borno_extent <- extent(borno)  
+RasterTemplate <- raster(crs = pcs, res = c(2.5/111.32, 2.5/111.32))
+extent(RasterTemplate) <- borno_extent
+
+# Resample the rasters
+population_resampled <- resample(population_processed, RasterTemplate, method = "bilinear")
+male_literacy_resampled <- resample(male_literacy_processed, RasterTemplate, method = "bilinear")
+female_literacy_resampled <- resample(female_literacy_processed, RasterTemplate, method = "bilinear")
+school_children_resampled <- resample(school_children_processed, RasterTemplate, method = "bilinear")
+poverty_resampled <- resample(poverty_processed, RasterTemplate, method = "bilinear")
+urban_rural_resampled <- resample(urban_rural_processed, RasterTemplate, method = "ngb")
+topography_resampled <- resample(topography_processed, RasterTemplate, method = "bilinear")
+roads_resampled <- resample(roads_processed, RasterTemplate, method = "bilinear")
+education_facilities_resampled <- resample(education_facilities_processed, RasterTemplate, method = "ngb")
+mosques_resampled <- resample(mosques_processed, RasterTemplate, method = "ngb")
+
+# Ensuring the binary of resampled rasters remains
+urban_rural_resampled <- calc(urban_rural_resampled, fun = function(x) ifelse(x >= 0.5, 1, 0))
+education_facilities_resampled <- calc(education_facilities_resampled, fun = function(x) ifelse(x >= 0.5, 1, 0))
+mosques_resampled <- calc(mosques_resampled, fun = function(x) ifelse(x >= 0.5, 1, 0))
+
+# Assign names to the resampled rasters
+names(population_resampled) <- "population"
+names(male_literacy_resampled) <- "male_literacy"
+names(female_literacy_resampled) <- "female_literacy"
+names(school_children_resampled) <- "school_children"
+names(poverty_resampled) <- "poverty"
+names(urban_rural_resampled) <- "urban_rural"
+names(topography_resampled) <- "topography"
+names(roads_resampled) <- "roads"
+names(education_facilities_resampled) <- "education_facilities"
+names(mosques_resampled) <- "mosques"
+
+# Saving the rasters
+writeRaster(population_resampled, filename = "population_raster_final.tif", overwrite = TRUE)
+writeRaster(male_literacy_resampled, filename = "male_literacy_raster_final.tif", overwrite = TRUE)
+writeRaster(female_literacy_resampled, filename = "female_literacy_raster_final.tif", overwrite = TRUE)
+writeRaster(school_children_resampled, filename = "school_children_raster_final.tif", overwrite = TRUE)
+writeRaster(poverty_resampled, filename = "poverty_raster_final.tif", overwrite = TRUE)
+writeRaster(urban_rural_resampled, filename = "urban_rural_raster_final.tif", overwrite = TRUE)
+writeRaster(topography_resampled, filename = "topography_raster_final.tif", overwrite = TRUE)
+writeRaster(roads_resampled, filename = "roads_raster_final.tif", overwrite = TRUE)
+writeRaster(education_facilities_resampled, filename = "education_raster_final.tif", overwrite = TRUE)
+writeRaster(mosques_resampled, filename = "mosques_raster_final.tif", overwrite = TRUE)
+```
+
+```{r Re-reading finished rasters}
+population_resampled <- raster('population_raster_final.tif')
+male_literacy_resampled <- raster('male_literacy_raster_final.tif')
+female_literacy_resampled <- raster('female_literacy_raster_final.tif')
+school_children_resampled <-raster('school_children_raster_final.tif')
+poverty_resampled <- raster('poverty_raster_final.tif')
+urban_rural_resampled <- raster('urban_rural_raster_final.tif')
+topography_resampled <- raster('topography_raster_final.tif')
+roads_resampled <- raster('roads_raster_final.tif')
+education_facilities_resampled <- raster('education_raster_final.tif')
+mosques_resampled <- raster('mosques_raster_final.tif')
+```
+
+Now that all my predictor variables are in the correct crs and spatial extent (clipped to Borno shapefile), I will quickly visualise these. 
+
+```{r Plotting predictor variable rasters}
+# Population
+population_map <- tm_shape(population_resampled) +
+  tm_raster(style = "quantile", title = "Pop/2.5km2", palette = "-RdYlBu") +
+  tm_shape(borno) +
+  tm_polygons(alpha = 0, border.col = "black") +
+  tm_shape(borno_LGAs) +  
+  tm_borders(col = "black", lwd = 0.3) + 
+  tm_layout(frame = FALSE, legend.position = c("left", "top"))
+
+# Male literacy
+male_lit_map <- tm_shape(male_literacy_resampled) + 
+  tm_raster(style = "cont", title = "%", palette= "Oranges", breaks = seq(0, 1, by = 0.2), labels = c("0", "20", "40", "60", "80", "100")) +
+  tm_shape(borno) + 
+  tm_polygons(alpha = 0, border.col = "black") +
+  tm_shape(borno_LGAs) + 
+  tm_borders(col = "black", lwd = 0.3) +
+  tm_layout(frame = FALSE, legend.position = c("left", "top"))
+
+# Female literacy
+female_lit_map <- tm_shape(female_literacy_resampled) +
+  tm_raster(style = "cont", title = "%", palette = "Blues", breaks = seq(0, 1, by = 0.2), labels = c("0", "20", "40", "60", "80", "100")) +
+  tm_shape(borno) +
+  tm_polygons(alpha = 0, border.col = "black") +
+  tm_shape(borno_LGAs) + 
+  tm_borders(col = "black", lwd = 0.3) +
+  tm_layout(frame = FALSE, legend.position = c("left", "top"))
+
+# School children
+school_children_map <- tm_shape(school_children_resampled) +
+  tm_raster(style = "quantile", title = "Children/2.5km2", palette = "-RdYlBu") +
+  tm_shape(borno) +
+  tm_polygons(alpha = 0, border.col = "black") +
+  tm_shape(borno_LGAs) + 
+  tm_borders(col = "black", lwd = 0.3) +
+  tm_layout(frame = FALSE, legend.position = c("left", "top"))
+
+# Poverty
+poverty_map <- tm_shape(poverty_resampled) +
+  tm_raster(style = "cont", title = "% living on >$1.25/d", palette = "-RdYlBu", breaks = seq(0, 1, by = 0.2), labels = c("0", "20", "40", "60", "80", "100")) +
+  tm_shape(borno) +
+  tm_polygons(alpha = 0, border.col = "black") +
+  tm_shape(borno_LGAs) + 
+  tm_borders(col = "black", lwd = 0.3) +
+  tm_layout(frame = FALSE, legend.position = c("left", "top"))
+
+# Urban v rural
+urban_rural_map <- tm_shape(urban_rural_resampled) +
+  tm_raster(style = "cat", title = "Land Type", palette = c("yellow", "blue"), labels = c("Rural", "Urban")) +
+  tm_shape(borno) +
+  tm_polygons(alpha = 0, border.col = "black") +
+  tm_shape(borno_LGAs) + 
+  tm_borders(col = "black", lwd = 0.3) +
+  tm_layout(frame = FALSE, legend.position = c("left", "top"))
+
+# Topography
+topography_map <- tm_shape(topography_resampled) +
+  tm_raster(style = "cont", title = "Elevation (m)", palette= "Greys") +
+  tm_shape(borno) +
+  tm_polygons(alpha = 0, border.col = "black") +
+  tm_shape(borno_LGAs) + 
+  tm_borders(col = "black", lwd = 0.3) +
+  tm_layout(frame = FALSE, legend.position = c("left", "top"))
+
+# Roads
+road_map <- tm_shape(roads_resampled) +
+  tm_raster(style = "cont", title = "Distance (km)", palette= "Oranges") +
+  tm_shape(borno) +
+  tm_polygons(alpha = 0, border.col = "black") +
+  tm_shape(borno_LGAs) + 
+  tm_borders(col = "black", lwd = 0.3) +
+  tm_layout(frame = FALSE, legend.position = c("left", "top"))
+
+# Educational facilities
+education_facilities_map <- tm_shape(education_facilities_resampled) +
+  tm_raster(style = "cat", title = "Facility presence", palette = c("yellow", "blue"), labels = c("No facilities", "Facilities")) +
+  tm_shape(borno) +
+  tm_polygons(alpha = 0, border.col = "black") +
+  tm_shape(borno_LGAs) + 
+  tm_borders(col = "black", lwd = 0.3) +
+  tm_layout(frame = FALSE, legend.position = c("left", "top"))
+
+# Mosques
+mosques_map <- tm_shape(mosques_resampled) +
+  tm_raster(style = "cat", title = "Mosque presence", palette = c("yellow", "blue"), labels = c("No Mosque", "Mosque")) +
+  tm_shape(borno) +
+  tm_polygons(alpha = 0, border.col = "black") +
+  tm_shape(borno_LGAs) + 
+  tm_borders(col = "black", lwd = 0.3) +
+  tm_layout(frame = FALSE, legend.position = c("left", "top"))
+```
+
+```{r Printing rasters}
+population_map
+male_lit_map
+female_lit_map
+school_children_map
+poverty_map
+urban_rural_map
+topography_map
+road_map
+education_facilities_map
+mosques_map
+```
+
+Now I am ready to proceed with logistic regression and MAXENT analysis
+
+## Logistic regression 
+
+```{r Logistic regression}
+# Creating a multi-band raster
+envCovariates <- stack(population_resampled, male_literacy_resampled, female_literacy_resampled, school_children_resampled, poverty_resampled, urban_rural_resampled, topography_resampled, roads_resampled, education_facilities_resampled, mosques_resampled)
+names(envCovariates) <- c("Population", "Male Literacy", "Female Literacy", "School children", "Poverty", "Urban v Rural", "Topography", "Roads", "Educational facilities", "Mosques")
+
+# Turning my terrorism point dataset into an sp object - essential for the code
+borno_terrorism_sp <- as(borno_terrorism, "Spatial")
+
+# Splitting the data into training and testing sets using k-fold
+set.seed(20000430)
+group <- kfold(borno_terrorism_sp, 5)
+occ_train <- borno_terrorism_sp[group != 1, ]
+occ_test <- borno_terrorism_sp[group == 1, ]
+
+# Extracting the predictor variables for training and testing
+train_vals <- raster::extract(envCovariates, occ_train)
+test_vals <- raster::extract(envCovariates, occ_test)
+
+# Creating background points
+set.seed(20000430)
+bg_points <- as.data.frame(randomPoints(envCovariates, 2 * nrow(occ_train)))
+coordinates(bg_points) <- ~ x + y
+
+# Extracting predictor variables for background points
+bg_vals <- raster::extract(envCovariates, bg_points)
+
+# Combining the presence and absence data
+pres_abs <- c(rep(1, nrow(train_vals)), rep(0, nrow(bg_vals)))
+data_combined <- as.data.frame(rbind(train_vals, bg_vals))
+logistic_data <- as.data.frame(cbind(pres_abs, data_combined))
+colnames(logistic_data)[1] <- "terror_attack"
+
+# Checking the column names of my logistic_data dataset
+print(colnames(logistic_data))
+
+# Running the Logistic regression model
+log_model <- glm(terror_attack ~ Population + Male.Literacy + Female.Literacy + School.children + Poverty + Urban.v.Rural + Topography + Roads + Educational.facilities + Mosques,
+                 family = binomial(link = "logit"), data = logistic_data)
+```
+
+To assess my model outputs:
+
+```{r Assessing outputs 1}
+# To examine the P-values
+summary(log_model) 
+```
+
+Statistically significant predictors of terrorist attacks are population, male literacy, school children, poverty, urban v rural, roads, educational facilities and mosques.
+
+Factors with a positive relationship to terrorist attacks (ie. as the variables increase, the likelihood of an attack increases) are population, male literacy and urban v rural.
+
+Factors with a negative relationship to terrorist attacks (ie. as the variables increase, the likelihood of an attack decreases) are female literacy, school children, poverty, roads, educational facilities and mosques.
+
+Topography is not a significant predictor.
+
+Approximately 50.66% of variance is explained by the model - a good fit for LR models.
+
+Broadly, the model indicates that all of my selected factors bar topography influence the likelihood of terrorist attacks.
+
+Next I will look at the odds ratios, as these enable me to understand the effect size of predictors in my model. I must exponentiate my coefficients for this.
+
+```{r Assessing outputs 2}
+# Converting to odds ratios
+exp(coefficients(log_model))
+
+# Extracting McFadden's R2
+pR2(log_model)
+```
+One unit increase in population increases the odds of an attack by approx. 0.9%.
+
+One unit increase in male literacy increases the odds of an attack by approx. 781%
+
+One unit increase in female literacy decreases the odds of an attack by approx. 66%
+
+One unit increase in school children decreases the odds of an attack by approx. 5.9%
+
+One unit increase in poverty decreases the odds of an attack by approx. 92.3%
+
+One unit increase in urban v rural increases the odds of an attack by approx. 1819%
+
+One unit increase in topography slightly increases the odds of an attack by approx. 0.07%
+
+One unit increase in roads decreases the odds of an attack by approx. 14.2%
+
+One unit increase in educational facilities decreases the odds of an attack by approx. 36.9%
+
+One unit increase in mosques decreases the odds of an attack by approx. 31%
+
+The pseudo-R2 values indicate the model has a good fit and explains a substantial portion of the variance in the data.
+
+Thus broadly, the model performs well, with several significant predictors and good fit statistics. This means that for my MAXENT model I will include all but topography as this is not statistically significant
+
+## MAXENT analysis
+
+To employ my MAXENT model I must first prepare my data. This involves creating pseudo-background points as absence. Background data ensures I'm not attempting to guess point locations where an event is absent. Rather, I'm trying to characterise the environment of the study region. Background data establishes the environmental domain of the study, whilst presence data will establish under which conditions a terrorist attack is more likely to occur than on average. Essentially, these are control points, generated at random. 
+
+```{r MAXENT (i)}
+# Turning my terrorism point dataset into an sp object - essential for the code
+borno_terrorism_sp <- as(borno_terrorism, "Spatial")
+
+# Redefining my variables to remove topography given its statistical insignificance indicated by the logistic regression
+variables <- stack(population_resampled, male_literacy_resampled, female_literacy_resampled, school_children_resampled, poverty_resampled, urban_rural_resampled, roads_resampled, education_facilities_resampled, mosques_resampled)
+names(variables) <- c("Population", "Male Literacy", "Female Literacy", "School children", "Poverty", "Urban v Rural", "Roads", "Educational facilities", "Mosques")
+
+# Setting the seed
+set.seed(20000430)
+
+# Using spsample() to generate twice number of terrorist attack points randomly within Borno's border
+background_points <- spsample(borno_sp, n=2*length(borno_terrorism_sp), "random")
+```
+
+Now I will extract all the raster values from predictor variables onto presence-absence points. This will produce matricies rather than data frames.
+
+```{r MAXENT (ii)}
+# Performing raster extraction from the predictor covariates on to points
+terrorist_attacks_env <- extract(variables, borno_terrorism_sp)
+background_points_env <- extract(variables, background_points)
+```
+
+For presence points, an indicator of 1 must be added to signify presence. For background points, the opposite (0 for absence). This is done because I am modelling a probability and niche models take outcomes that are either a Bernoulli or Binomial distribution.
+
+```{r MAXENT (iii)} 
+# Converting the large matrix objects to data frame objects and add outcome `attack` indicator
+terrorist_attacks_env <-data.frame(terrorist_attacks_env,attack=1)
+background_points_env <-data.frame(background_points_env,attack=0)
+
+# View one of the data frame
+head(terrorist_attacks_env, n=5)
+head(background_points_env, n=5)
+```
+
+Final step is setting up the K-fold cross-validation. 
+
+```{r MAXENT (iiii)}
+# Splitting the plot panel into 4 segments for 4 AUC plots
+par(mfrow=c(2,2))
+
+# Creating a list() object to dump results inside `eMAX`
+eMAX<-list()
+
+folds <- 4
+
+kfold_pres <- kfold(terrorist_attacks_env, folds)
+kfold_back <- kfold(background_points_env, folds)
+
+set.seed(20000430)
+
+# Adapted loop code from https://rpubs.com/mlibxmda/GEOG70922_Week5
+for (i in 1:folds) {
+    train <- terrorist_attacks_env[kfold_pres!= i,]
+    test <- terrorist_attacks_env[kfold_pres == i,]
+    backTrain<-background_points_env[kfold_back!=i,]
+    backTest<-background_points_env[kfold_back==i,]
+    dataTrain<-rbind(train,backTrain)
+    dataTest<-rbind(test,backTest)
+    maxnet_eval <- maxent(x=dataTrain[,c(1:9)], p=dataTrain[,10], args=c("responsecurves"))
+    eMAX[[i]] <- evaluate(p=dataTest[dataTest$attack==1,],a=dataTest[dataTest$attack==0,], maxnet_eval)
+    plot(eMAX[[i]],'ROC')
+}
+
+aucMAX <- sapply( eMAX, function(x){slot(x, 'auc')} )
+
+# Producing a report 4 of the AUC
+aucMAX
+
+# Finding the mean of AUC (and it must be > 0.50)
+mean(aucMAX)
+
+# Getting maxTPR+TNR for the model
+Opt_MAX<-sapply( eMAX, function(x){ x@t[which.max(x@TPR + x@TNR)] } )
+Opt_MAX
+
+Mean_OptMAX<-mean(Opt_MAX)
+Mean_OptMAX
+
+# Combining all data
+full_data <- rbind(terrorist_attacks_env, background_points_env)
+
+final_maxent_model <- maxent(x = full_data[, c(1:9)], p = full_data[, 10], args = c("responsecurves"))
+
+prob_attack <- predict(final_maxent_model, variables)
+```
+## Assessing model outputs
+
+First I want to look at which variable has the biggest contribution to the presence of terrorist attacks in Borno.
+
+```{r Analysis (i): Predictor contribution}
+plot(final_maxent_model, pch=19, xlab = "Percentage [%]", cex=1.2)
+```
+
+```{r Analysis (ii): Response curves}
+response(final_maxent_model)
+```
+
+## Visualising attack risk
+
+```{r Plotting risk across the study area}
+# Mapping probability 
+tm_shape(prob_attack) +
+    tm_raster(title = "Predicted probability", palette = '-RdYlBu', style ='cont', breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1.0))+
+tm_shape(borno) + tm_polygons(alpha = 0, border.col = "black") +
+    tm_layout(main.title = "Predicted Probability of Terrorist Attack [%]", main.title.position = c(0.2, 0.7), title.size=3, legend.text.size = 1.1, 
+        legend.position = c(0.65, 0.55), legend.height= -0.3, legend.title.size = 1.1, frame='white')+
+    tm_scale_bar(position=c(0.02, 0.02), text.size = 1, breaks = c(0, 100, 200, 300))+
+    tm_compass(north = 0,type = 'arrow', position = c('right', 'top'), text.size = 0.9)
+```
+
