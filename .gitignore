@@ -47,3 +47,40 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+
+# Custom files to ignore
+.borno.dbf
+.borno.prj
+.borno.shp
+.borno.shx
+.borno_terrorism.csv
+.borno_terrorist_attacks_map.png
+.education_raster_final.tif
+.female_literacy_raster_final.tif
+.gadm41_NGA_0.cpg
+.gadm41_NGA_0.dbf
+.gadm41_NGA_0.prj
+.gadm41_NGA_0.shp
+.gadm41_NGA_0.shx
+.gadm41_NGA_1.cpg
+.gadm41_NGA_1.dbf
+.gadm41_NGA_1.prj
+.gadm41_NGA_1.shp
+.gadm41_NGA_1.shx
+.gadm41_NGA_2.cpg
+.gadm41_NGA_2.dbf
+.gadm41_NGA_2.prj
+.gadm41_NGA_2.shp
+.gadm41_NGA_2.shx
+.global_terrorism.csv
+.male_literacy_raster_final.tif
+.mosques_raster_final.tif
+.nga10povcons125.tif
+.nga_ppp_2020_1km_Aggregated.tif
+.population_raster_final.tif
+.poverty_raster_final.tif
+.recent_terrorism.csv
+.roads_raster_final.tif
+.school_children_raster_final.tif
+.topography_raster_final.tif
+.urban_rural_raster_final.tif
