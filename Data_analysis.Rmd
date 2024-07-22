@@ -2,7 +2,7 @@
 
 Part 2 contains the primary analysis portion of my dissertation. The aim of this analysis is to assert which factors impact terrorist attack occurrence using logistic regression, before combining these factors into a stack and employing the Maximum Entropy Model (MAXENT) to infer areas at risk of terrorist attacks given predictor variables.
 
-## Preparing factor data thought to influence attack risk
+## Preparing factor data 
 
 For my model I will be dealing with point occurrence data of terrorist attacks in Borno state from 2010 to 2020 as well as raster data for each predictor variable. 
 
@@ -376,7 +376,11 @@ for (i in 1:folds) {
 }
 
 aucMAX <- sapply( eMAX, function(x){slot(x, 'auc')} )
+```
 
+All the AUC values are above 0.9, which means the model has an exceptional discriminative ability (ie. can distinguish between attack versus absence points very well). Also, the fact that they're consistent suggests that the model is stable and performs well across different subsets of the data. The shape of the curves means that the model correctly identifies a high proportion of actual positives whilst making few false positive errors. 
+
+```{r}
 # Producing a report 4 of the AUC
 aucMAX
 
@@ -397,28 +401,86 @@ final_maxent_model <- maxent(x = full_data[, c(1:9)], p = full_data[, 10], args 
 
 prob_attack <- predict(final_maxent_model, variables)
 ```
+
 ## Assessing model outputs
 
 First I want to look at which variable has the biggest contribution to the presence of terrorist attacks in Borno.
 
-```{r Analysis (i): Predictor contribution}
+```{r Analysis 1: Predictor contribution}
 plot(final_maxent_model, pch=19, xlab = "Percentage [%]", cex=1.2)
 ```
 
-```{r Analysis (ii): Response curves}
+```{r Analysis 2: Response curves}
 response(final_maxent_model)
 ```
 
 ## Visualising attack risk
 
-```{r Plotting risk across the study area}
-# Mapping probability 
-tm_shape(prob_attack) +
-    tm_raster(title = "Predicted probability", palette = '-RdYlBu', style ='cont', breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1.0))+
-tm_shape(borno) + tm_polygons(alpha = 0, border.col = "black") +
-    tm_layout(main.title = "Predicted Probability of Terrorist Attack [%]", main.title.position = c(0.2, 0.7), title.size=3, legend.text.size = 1.1, 
-        legend.position = c(0.65, 0.55), legend.height= -0.3, legend.title.size = 1.1, frame='white')+
-    tm_scale_bar(position=c(0.02, 0.02), text.size = 1, breaks = c(0, 100, 200, 300))+
-    tm_compass(north = 0,type = 'arrow', position = c('right', 'top'), text.size = 0.9)
+Next I will generate a predicted probability map from the above prob_attack object. 
+
+```{r Mapping 1: Predicted probability}
+predicted_prob <- tm_shape(prob_attack) +
+  tm_raster(title = "Predicted probability", palette = '-RdYlBu', style ='cont', breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1.0)) +
+tm_shape(borno) + 
+  tm_polygons(alpha = 0, border.col = "black") +
+tm_layout(
+  main.title = "Predicted probability of terrorist attacks", 
+  main.title.position = c(0, 0), 
+  title.size = 3, 
+  legend.text.size = 1.1, 
+  legend.position = c(0.65, 0.55), 
+  legend.height = -0.3, 
+  legend.title.size = 1.1, 
+  frame = 'white',
+  fontfamily = "Avenir"
+) 
+
+tmap_save(predicted_prob, filename = "predicted_prob.png", width = 2000, height = 2000, dpi = 300)
+```
+
+Now I want to create a binary raster of expected trigger points for terrorist attacks across Borno. This will use the optimal threshold value from my cross validation object to reclassify the raster.
+
+This will use the threshold value of 0.4377834, with anything estimated below this being classified as 0 whilst anything above as 1. 
+
+```{r Mapping 2: Binary threshold}
+# Calculate model threshold
+threshold_value <- threshold(cross_validation, "spec_sens")
+
+threshold_value
+
+Opt_MAX
+
+# Reclassifying raster with threshold value 
+create_classes_vector <- c(0, Mean_OptMAX, 0, Mean_OptMAX, 1, 1)
+create_clasess_matrix <- matrix(create_classes_vector, ncol = 3, byrow = TRUE)
+create_clasess_matrix
+
+# Create new reclassify raster
+suitability_attacks <- reclassify(prob_attack, create_clasess_matrix)
+
+# Plot
+binary_map <- tm_shape(suitability_attacks) + 
+  tm_raster(style = "cat", title = "Threshold", palette = c("lightgrey", "#ef6030"), labels = c("Low threat", "Trigger points")) +
+tm_shape(borno) + 
+  tm_polygons(alpha = 0, border.col = "black") +
+tm_layout(
+  frame = FALSE, 
+  legend.outside = TRUE, 
+  fontfamily = "Avenir",
+  title.color = "black",
+  legend.text.color = "black"
+) 
+
+tmap_save(binary_map, filename = "binary_map.png", width = 2000, height = 2000, dpi = 300)
+```
+
+## Identifying at-risk populations
+
+I want to now apply this predictive map to see which populations are most at risk of terrorist attacks. This is essential in informing resource allocation and safety of civilians. Firstly, I'm interested in looking at general population groups that are at risk, before quantifying under-15 populations at risk to support long-term resource allocation efforts.
+
+Firstly, I will look at general populations at risk.
+
+```{r Populations at high risk of terrorist attacks}
+
 ```
 
