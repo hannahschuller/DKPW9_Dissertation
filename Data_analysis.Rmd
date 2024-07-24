@@ -577,6 +577,9 @@ high_risk_child_population <- raster('high_risk_child_population.tif')
 template <- raster(extent(suitability), res=res(suitability), crs=crs(suitability))
 child_population_aligned <- resample(child_population, template, method='bilinear') 
 
+writeRaster(child_population_aligned, 'child_population_aligned.tif', format='GTiff', overwrite=TRUE)
+
+
 # Checking that the resampling worked
 cat("CRS of suitability raster:\n")
 print(crs(suitability))
