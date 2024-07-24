@@ -492,6 +492,7 @@ Firstly, I will look at general populations at risk.
 # Re-loading raster
 suitability <- raster('suitability_attacks.tif')
 population_resampled <- raster('population_raster_final.tif')
+high_risk_population <- raster('high_risk_population.tif')
 
 # Resampling the population raster to match the suitability raster
 template <- raster(extent(suitability), res=res(suitability), crs=crs(suitability))
@@ -522,16 +523,18 @@ high_risk_population <- population_aligned * high_risk_mask
 # Set low-risk pixels to NA
 high_risk_population[high_risk_population == 0] <- NA
 
+# Saving raster 
+writeRaster(high_risk_population, 'high_risk_population.tif', format='GTiff', overwrite=TRUE)
+
 # Plot the resulting raster
 plot(high_risk_population, main="Population Density in High-Risk Areas", col=terrain.colors(100), na.color="transparent")
 
 # Plotting the resulting raster
-population_at_risk <- tm_shape(high_risk_population) +
+tm_shape(high_risk_population) +
   tm_raster(style = "cont", palette = "-RdYlGn", title = "High-Risk Population Density") +
   tm_shape(borno_LGAs) +
-  tm_borders(col = "black") +
-  tm_layout(title = "High-Risk Population Density across Borno State",
-            legend.outside = TRUE,
+  tm_borders(col = "grey") +
+  tm_layout(legend.outside = TRUE,
             frame = FALSE,
             fontfamily = "Avenir",
             legend.title.size = 1.2,
@@ -540,11 +543,6 @@ population_at_risk <- tm_shape(high_risk_population) +
             bg.color = "white",
             panel.label.bg.color = "transparent",
             panel.label.color = "black")
-
-plot(population_at_risk)
-
-# Saving raster 
-writeRaster(high_risk_population, 'high_risk_population.tif', format='GTiff', overwrite=TRUE)
 ```
 
 Now I want to look at the percentage of each LGAs population who are at risk of terrorist attacks so I can consider relative risk across the state.
@@ -567,4 +565,61 @@ ggplot(borno_LGAs) +
        fill = "Percentage") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
+Finally, I shall do the same but for populations under 15 years old.
 
+```{r Populations under 15 at high risk of terrorist attacks}
+# Re-loading raster
+suitability <- raster('suitability_attacks.tif')
+child_population <- raster('child_pop.tif')
+high_risk_child_population <- raster('high_risk_child_population.tif')
+
+# Resampling the population raster to match the suitability raster
+template <- raster(extent(suitability), res=res(suitability), crs=crs(suitability))
+child_population_aligned <- resample(child_population, template, method='bilinear') 
+
+# Checking that the resampling worked
+cat("CRS of suitability raster:\n")
+print(crs(suitability))
+cat("\nCRS of aligned population raster:\n")
+print(crs(population_aligned))
+
+cat("\nResolution of suitability raster:\n")
+print(res(suitability))
+cat("\nResolution of aligned population raster:\n")
+print(res(population_aligned))
+
+cat("\nExtent of suitability raster:\n")
+print(extent(suitability))
+cat("\nExtent of aligned population raster:\n")
+print(extent(population_aligned))
+
+# Identifying high-risk pixels (where suitability raster has value 1)
+high_risk_mask <- suitability == 1
+
+# Creating a new raster with population counts in high-risk areas
+high_risk_child_population <- child_population_aligned * high_risk_mask
+
+# Set low-risk pixels to NA
+high_risk_child_population[high_risk_child_population == 0] <- NA
+
+# Saving raster 
+writeRaster(high_risk_child_population, 'high_risk_child_population.tif', format='GTiff', overwrite=TRUE)
+
+# Plot the resulting raster
+plot(high_risk_child_population, main="Density of population under 15 across high risk areas", col=terrain.colors(100), na.color="transparent")
+
+# Plotting the resulting raster
+tm_shape(high_risk_child_population) +
+  tm_raster(style = "cont", palette = "-RdYlGn", title = "High-risk population density, under 15 years old") +
+  tm_shape(borno_LGAs) +
+  tm_borders(col = "grey") +
+  tm_layout(legend.outside = TRUE,
+            frame = FALSE,
+            fontfamily = "Avenir",
+            legend.title.size = 1.2,
+            legend.text.size = 0.8,
+            title.size = 1.5,
+            bg.color = "white",
+            panel.label.bg.color = "transparent",
+            panel.label.color = "black")
+```
