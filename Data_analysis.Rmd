@@ -519,8 +519,29 @@ high_risk_mask <- suitability == 1
 # Creating a new raster with population counts in high-risk areas
 high_risk_population <- population_aligned * high_risk_mask
 
+# Set low-risk pixels to NA
+high_risk_population[high_risk_population == 0] <- NA
+
+# Plot the resulting raster
+plot(high_risk_population, main="Population Density in High-Risk Areas", col=terrain.colors(100), na.color="transparent")
+
 # Plotting the resulting raster
-plot(high_risk_population, main="Population Density in High-Risk Areas", col=terrain.colors(100))
+population_at_risk <- tm_shape(high_risk_population) +
+  tm_raster(style = "cont", palette = "-RdYlGn", title = "High-Risk Population Density") +
+  tm_shape(borno_LGAs) +
+  tm_borders(col = "black") +
+  tm_layout(title = "High-Risk Population Density across Borno State",
+            legend.outside = TRUE,
+            frame = FALSE,
+            fontfamily = "Avenir",
+            legend.title.size = 1.2,
+            legend.text.size = 0.8,
+            title.size = 1.5,
+            bg.color = "white",
+            panel.label.bg.color = "transparent",
+            panel.label.color = "black")
+
+plot(population_at_risk)
 
 # Saving raster 
 writeRaster(high_risk_population, 'high_risk_population.tif', format='GTiff', overwrite=TRUE)
