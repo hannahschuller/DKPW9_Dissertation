@@ -19,6 +19,7 @@ library(dismo)
 library(rJava)
 library(terra)
 library(pscl)
+library(exactextractr)
 ```
 
 ```{r Reading in data}
@@ -253,6 +254,7 @@ states_terrorism <- st_as_sf(states_terrorism, wkt = "geometry")
 ggplot(states_terrorism) +
   geom_sf(aes(fill = attacks_per_10000)) +
   scale_fill_gradient(low = "white", high = "#ef6030", name = "Attacks per 10,000 people") +
+  labs(title = "Terrorist attacks per 10,000 people") +
   theme_minimal(base_family = "Avenir") +
   theme(
     panel.grid = element_blank(),      
