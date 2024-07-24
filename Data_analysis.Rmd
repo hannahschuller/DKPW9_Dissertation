@@ -464,7 +464,7 @@ suitability_attacks <- reclassify(prob_attack, create_clasess_matrix)
 writeRaster(suitability_attacks, filename = "suitability_attacks.tif", overwrite = TRUE)
 
 # Plot
-binary_map <- tm_shape(suitability_attacks) + 
+binary_map <- tm_shape(suitability) + 
   tm_raster(style = "cat", title = "Threshold", palette = c("lightgrey", "#ef6030"), labels = c("Low threat", "Trigger points")) +
 tm_shape(borno) + 
   tm_polygons(alpha = 0, border.col = "black") +
@@ -478,6 +478,7 @@ tm_layout(
 
 plot(binary_map)
 
+# Save plot
 tmap_save(binary_map, filename = "binary_map.png", width = 2000, height = 2000, dpi = 300)
 ```
 
@@ -488,63 +489,61 @@ I want to now apply this predictive map to see which populations are most at ris
 Firstly, I will look at general populations at risk.
 
 ```{r Populations at high risk of terrorist attacks}
-# Ensuring my population raster has the same resolution/extent as my binary raster
-population_reprojection <- resample(population, suitability_attacks, method = "bilinear")
-
-# Saving this
-writeRaster(population_reprojection, filename = "population_reprojection.tif", overwrite = TRUE)
-
-# Re-loading rasters
-population_reproject <- raster('population_reprojection.tif')
+# Re-loading raster
 suitability <- raster('suitability_attacks.tif')
+population_resampled <- raster('population_raster_final.tif')
 
-# Masking the population raster with the binary raster to obtain only high risk areas
-high_risk_population <- suitability * population_reproject
+# Resampling the population raster to match the suitability raster
+template <- raster(extent(suitability), res=res(suitability), crs=crs(suitability))
+population_aligned <- resample(population_resampled, template, method='bilinear') 
 
-# Saving this
-writeRaster(high_risk_population, filename = "high_risk_population.tif", overwrite = TRUE)
+# Checking that the resampling worked
+cat("CRS of suitability raster:\n")
+print(crs(suitability))
+cat("\nCRS of aligned population raster:\n")
+print(crs(population_aligned))
 
-# Visualising this 
-tm_shape(high_risk_population) +
-  tm_raster(title = "Population at Risk", palette = "-viridis") +
-  tm_shape(borno) + 
-  tm_polygons(alpha = 0, border.col = "black") +
-  tm_layout(main.title = "Population at Risk", main.title.position = c(0, 0), title.size = 3, fontfamily = "Avenir") +
-  tm_scale_bar(position = c(0.02, 0.02), text.size = 1, breaks = c(0, 100, 200, 300)) +
-  tm_compass(north = 0, type = 'arrow', position = c('right', 'top'), text.size = 0.9)
+cat("\nResolution of suitability raster:\n")
+print(res(suitability))
+cat("\nResolution of aligned population raster:\n")
+print(res(population_aligned))
+
+cat("\nExtent of suitability raster:\n")
+print(extent(suitability))
+cat("\nExtent of aligned population raster:\n")
+print(extent(population_aligned))
+
+# Identifying high-risk pixels (where suitability raster has value 1)
+high_risk_mask <- suitability == 1
+
+# Creating a new raster with population counts in high-risk areas
+high_risk_population <- population_aligned * high_risk_mask
+
+# Plotting the resulting raster
+plot(high_risk_population, main="Population Density in High-Risk Areas", col=terrain.colors(100))
+
+# Saving raster 
+writeRaster(high_risk_population, 'high_risk_population.tif', format='GTiff', overwrite=TRUE)
 ```
+
 Now I want to look at the percentage of each LGAs population who are at risk of terrorist attacks so I can consider relative risk across the state.
 
 ```{r Population percentage at risk}
-# Ensure CRS of LGAs and binary raster match
-crs(borno_LGAs) <- crs(suitability_attacks)
+# Calculate total population and high-risk population for each LGA
+borno_LGAs$total_population <- exact_extract(population_aligned, borno_LGAs, 'sum')
+borno_LGAs$high_risk_population <- exact_extract(high_risk_population, borno_LGAs, 'sum')
 
-# Calculating the total population at risk for each LGA
-LGA_risk <- extract(population_at_risk, borno_LGAs, fun = sum, na.rm = TRUE, df = TRUE)
-LGA_pop <- extract(population_resampled, borno_LGAs, fun = sum, na.rm = TRUE, df = TRUE)
+# Calculate the percentage of population in high-risk areas
+borno_LGAs <- borno_LGAs %>%
+  mutate(percentage_high_risk = (high_risk_population / total_population) * 100)
 
-# Combining the data into one data frame
-LGA_data <- data.frame(
-  LGA_ID = borno_LGAs@data$LGA_ID,
-  Total_Population = lga_total_pop[, 2],
-  Population_At_Risk = lga_pop_at_risk[, 2]
-)
-
-# Calculating the percentage of population at risk
-lga_data <- lga_data %>%
-  mutate(Percentage_At_Risk = (Population_At_Risk / Total_Population) * 100)
-
-# Merging the calculated data back with the LGA shapefile
-lga_boundaries@data <- merge(lga_boundaries@data, lga_data, by.x = "LGA_ID", by.y = "LGA_ID")
-
-# Plotting results
-tm_shape(lga_boundaries) +
-  tm_polygons(col = "Percentage_At_Risk", palette = "-RdYlBu", title = "Percentage at Risk",
-              style = "cont", border.col = "black", lwd = 0.5) +
-  tm_layout(main.title = "Percentage of Population at Risk by LGA", 
-            main.title.position = c("center", "top"), 
-            title.size = 1.5, fontfamily = "Avenir") +
-  tm_scale_bar(position = c("left", "bottom")) +
-  tm_compass(position = c("right", "top"))
+# Plot the results
+ggplot(borno_LGAs) +
+  geom_sf(aes(fill = cut(percentage_high_risk, breaks = c(0, 10, 20, 30, 40, 50, 100), include.lowest = TRUE))) +
+  scale_fill_viridis_d(name = "Percentage High Risk", labels = c("0-10%", "10-20%", "20-30%", "30-40%", "40-50%", "50-100%")) +
+  theme_minimal() +
+  labs(title = "Percentage of Population in High-Risk Areas by LGA",
+       fill = "Percentage") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
