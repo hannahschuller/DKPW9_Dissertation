@@ -198,7 +198,8 @@ mosques_map <- tm_shape(mosques_resampled) +
   tm_layout(frame = FALSE, legend.position = c("left", "top"))
 ```
 
-```{r Printing rasters}
+```{r Plotting rasters}
+# Plotting variables
 population_map
 male_lit_map
 female_lit_map
@@ -209,6 +210,18 @@ topography_map
 road_map
 education_facilities_map
 mosques_map
+
+# Downloading raster plots
+tmap_save(population_map, filename = "population_map.png", width = 2000, height = 2000, dpi = 300)
+tmap_save(male_lit_map, filename = "male_lit_map.png", width = 2000, height = 2000, dpi = 300)
+tmap_save(female_lit_map, filename = "female_lit_map.png", width = 2000, height = 2000, dpi = 300)
+tmap_save(school_children_map, filename = "school_children_map.png", width = 2000, height = 2000, dpi = 300)
+tmap_save(poverty_map, filename = "poverty_map.png", width = 2000, height = 2000, dpi = 300)
+tmap_save(urban_rural_map, filename = "urban_rural_map.png", width = 2000, height = 2000, dpi = 300)
+tmap_save(topography_map, filename = "topography_map.png", width = 2000, height = 2000, dpi = 300)
+tmap_save(road_map, filename = "road_map.png", width = 2000, height = 2000, dpi = 300)
+tmap_save(education_facilities_map, filename = "education_facilities_map.png", width = 2000, height = 2000, dpi = 300)
+tmap_save(mosques_map, filename = "mosques_map.png", width = 2000, height = 2000, dpi = 300)
 ```
 
 Now I am ready to proceed with logistic regression and MAXENT analysis
@@ -425,13 +438,9 @@ tm_shape(borno) +
   tm_polygons(alpha = 0, border.col = "black") +
 tm_layout(
   main.title = "Predicted probability of terrorist attacks", 
-  main.title.position = c(0, 0), 
   title.size = 3, 
-  legend.text.size = 1.1, 
-  legend.position = c(0.65, 0.55), 
-  legend.height = -0.3, 
-  legend.title.size = 1.1, 
-  frame = 'white',
+  legend.text.size = 0.8, 
+  legend.title.size = 1, 
   fontfamily = "Avenir"
 ) 
 
@@ -443,13 +452,6 @@ Now I want to create a binary raster of expected trigger points for terrorist at
 This will use the threshold value of 0.4377834, with anything estimated below this being classified as 0 whilst anything above as 1. 
 
 ```{r Mapping 2: Binary threshold}
-# Calculate model threshold
-threshold_value <- threshold(cross_validation, "spec_sens")
-
-threshold_value
-
-Opt_MAX
-
 # Reclassifying raster with threshold value 
 create_classes_vector <- c(0, Mean_OptMAX, 0, Mean_OptMAX, 1, 1)
 create_clasess_matrix <- matrix(create_classes_vector, ncol = 3, byrow = TRUE)
@@ -457,6 +459,9 @@ create_clasess_matrix
 
 # Create new reclassify raster
 suitability_attacks <- reclassify(prob_attack, create_clasess_matrix)
+
+# Saving this
+writeRaster(suitability_attacks, filename = "suitability_attacks.tif", overwrite = TRUE)
 
 # Plot
 binary_map <- tm_shape(suitability_attacks) + 
@@ -471,6 +476,8 @@ tm_layout(
   legend.text.color = "black"
 ) 
 
+plot(binary_map)
+
 tmap_save(binary_map, filename = "binary_map.png", width = 2000, height = 2000, dpi = 300)
 ```
 
@@ -482,19 +489,23 @@ Firstly, I will look at general populations at risk.
 
 ```{r Populations at high risk of terrorist attacks}
 # Ensuring my population raster has the same resolution/extent as my binary raster
-population_resampled <- resample(population, suitability_attacks, method = "bilinear")
+population_reprojection <- resample(population, suitability_attacks, method = "bilinear")
+
+# Saving this
+writeRaster(population_reprojection, filename = "population_reprojection.tif", overwrite = TRUE)
+
+# Re-loading rasters
+population_reproject <- raster('population_reprojection.tif')
+suitability <- raster('suitability_attacks.tif')
 
 # Masking the population raster with the binary raster to obtain only high risk areas
-population_at_risk <- mask(population_resampled, suitability_attacks, maskvalue = 1)
+high_risk_population <- suitability * population_reproject
 
-# Calculating the total population at risk
-total_population_at_risk <- cellStats(population_at_risk, stat = 'sum', na.rm = TRUE)
-
-# Print this number 
-print(total_population_at_risk)
+# Saving this
+writeRaster(high_risk_population, filename = "high_risk_population.tif", overwrite = TRUE)
 
 # Visualising this 
-tm_shape(population_at_risk) +
+tm_shape(high_risk_population) +
   tm_raster(title = "Population at Risk", palette = "-viridis") +
   tm_shape(borno) + 
   tm_polygons(alpha = 0, border.col = "black") +
