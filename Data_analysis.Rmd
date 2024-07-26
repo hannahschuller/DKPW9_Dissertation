@@ -417,36 +417,32 @@ prob_attack <- predict(final_maxent_model, variables)
 
 ## Assessing model outputs
 
-First I want to look at which variable has the biggest contribution to the presence of terrorist attacks in Borno.
+I want to look at which variable has the biggest contribution to the presence of terrorist attacks in Borno.
 
-```{r Analysis 1: Predictor contribution}
+```{r Analysis: Predictor contribution}
 plot(final_maxent_model, pch=19, xlab = "Percentage [%]", cex=1.2)
 ```
-
-```{r Analysis 2: Response curves}
-response(final_maxent_model)
-```
-
 ## Visualising attack risk
 
 Next I will generate a predicted probability map from the above prob_attack object. 
 
 ```{r Mapping 1: Predicted probability}
-predicted_prob <- tm_shape(prob_attack) +
-  tm_raster(title = "Predicted probability", palette = '-RdYlBu', style ='cont', breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1.0)) +
-tm_shape(borno) + 
-  tm_polygons(alpha = 0, border.col = "black") +
-tm_layout(
-  main.title = "Predicted probability of terrorist attacks", 
-  title.size = 3, 
-  legend.text.size = 0.8, 
-  legend.title.size = 1, 
-  fontfamily = "Avenir"
-) 
+tmap_mode("plot")
+
+tm_shape(prob_attack) +
+    tm_raster(title = "Predicted probability", palette = '-RdYlBu', style = 'cont', breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1.0)) +
+    tm_shape(borno) + 
+    tm_polygons(alpha = 0, border.col = "black") +
+    tm_layout(
+      main.title = "Predicted probability of terrorist attacks", 
+      title.size = 1, 
+      legend.text.size = 0.4, 
+      legend.title.size = 0.8, 
+      fontfamily = "Avenir"
+    )
 
 tmap_save(predicted_prob, filename = "predicted_prob.png", width = 2000, height = 2000, dpi = 300)
 ```
-
 Now I want to create a binary raster of expected trigger points for terrorist attacks across Borno. This will use the optimal threshold value from my cross validation object to reclassify the raster.
 
 This will use the threshold value of 0.4377834, with anything estimated below this being classified as 0 whilst anything above as 1. 
@@ -464,7 +460,7 @@ suitability_attacks <- reclassify(prob_attack, create_clasess_matrix)
 writeRaster(suitability_attacks, filename = "suitability_attacks.tif", overwrite = TRUE)
 
 # Plot
-binary_map <- tm_shape(suitability) + 
+tm_shape(suitability_attacks) + 
   tm_raster(style = "cat", title = "Threshold", palette = c("lightgrey", "#ef6030"), labels = c("Low threat", "Trigger points")) +
 tm_shape(borno) + 
   tm_polygons(alpha = 0, border.col = "black") +
@@ -475,11 +471,6 @@ tm_layout(
   title.color = "black",
   legend.text.color = "black"
 ) 
-
-plot(binary_map)
-
-# Save plot
-tmap_save(binary_map, filename = "binary_map.png", width = 2000, height = 2000, dpi = 300)
 ```
 
 ## Identifying at-risk populations
@@ -498,21 +489,8 @@ high_risk_population <- raster('high_risk_population.tif')
 template <- raster(extent(suitability), res=res(suitability), crs=crs(suitability))
 population_aligned <- resample(population_resampled, template, method='bilinear') 
 
-# Checking that the resampling worked
-cat("CRS of suitability raster:\n")
-print(crs(suitability))
-cat("\nCRS of aligned population raster:\n")
-print(crs(population_aligned))
-
-cat("\nResolution of suitability raster:\n")
-print(res(suitability))
-cat("\nResolution of aligned population raster:\n")
-print(res(population_aligned))
-
-cat("\nExtent of suitability raster:\n")
-print(extent(suitability))
-cat("\nExtent of aligned population raster:\n")
-print(extent(population_aligned))
+# Saving raster 
+writeRaster(population_aligned, 'population_aligned.tif', format='GTiff', overwrite=TRUE)
 
 # Identifying high-risk pixels (where suitability raster has value 1)
 high_risk_mask <- suitability == 1
@@ -536,11 +514,9 @@ tm_shape(high_risk_population) +
   tm_borders(col = "grey") +
   tm_layout(legend.outside = TRUE,
             frame = FALSE,
-            fontfamily = "Avenir",
-            legend.title.size = 1.2,
+            legend.title.size = 1,
             legend.text.size = 0.8,
-            title.size = 1.5,
-            bg.color = "white",
+            title.size = 3,
             panel.label.bg.color = "transparent",
             panel.label.color = "black")
 ```
@@ -558,12 +534,20 @@ borno_LGAs <- borno_LGAs %>%
 
 # Plot the results
 ggplot(borno_LGAs) +
-  geom_sf(aes(fill = cut(percentage_high_risk, breaks = c(0, 10, 20, 30, 40, 50, 100), include.lowest = TRUE))) +
-  scale_fill_viridis_d(name = "Percentage High Risk", labels = c("0-10%", "10-20%", "20-30%", "30-40%", "40-50%", "50-100%")) +
-  theme_minimal() +
+  geom_sf(aes(fill = percentage_high_risk)) +
+  scale_fill_viridis_c(name = "Percentage High Risk", 
+                       breaks = seq(0, 100, by = 10), 
+                       labels = c("0%", "10%", "20%", "30%", "40%", "50%", "60%", "70%", "80%", "90%", "100%"),
+                       limits = c(0, 100)) +
+  theme_minimal(base_family = "Avenir") +
   labs(title = "Percentage of Population in High-Risk Areas by LGA",
        fill = "Percentage") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  theme(
+    panel.grid = element_blank(),
+    axis.title = element_blank(),
+    axis.text = element_blank(),
+    axis.ticks = element_blank()
+  )
 ```
 Finally, I shall do the same but for populations under 15 years old.
 
@@ -571,30 +555,11 @@ Finally, I shall do the same but for populations under 15 years old.
 # Re-loading raster
 suitability <- raster('suitability_attacks.tif')
 child_population <- raster('child_pop.tif')
-high_risk_child_population <- raster('high_risk_child_population.tif')
+child_population_aligned <- raster('child_population_aligned.tif')
 
 # Resampling the population raster to match the suitability raster
 template <- raster(extent(suitability), res=res(suitability), crs=crs(suitability))
-child_population_aligned <- resample(child_population, template, method='bilinear') 
-
-writeRaster(child_population_aligned, 'child_population_aligned.tif', format='GTiff', overwrite=TRUE)
-
-
-# Checking that the resampling worked
-cat("CRS of suitability raster:\n")
-print(crs(suitability))
-cat("\nCRS of aligned population raster:\n")
-print(crs(population_aligned))
-
-cat("\nResolution of suitability raster:\n")
-print(res(suitability))
-cat("\nResolution of aligned population raster:\n")
-print(res(population_aligned))
-
-cat("\nExtent of suitability raster:\n")
-print(extent(suitability))
-cat("\nExtent of aligned population raster:\n")
-print(extent(population_aligned))
+child_population_aligned <- resample(child_population, template, method='bilinear')
 
 # Identifying high-risk pixels (where suitability raster has value 1)
 high_risk_mask <- suitability == 1
@@ -613,16 +578,43 @@ plot(high_risk_child_population, main="Density of population under 15 across hig
 
 # Plotting the resulting raster
 tm_shape(high_risk_child_population) +
-  tm_raster(style = "cont", palette = "-RdYlGn", title = "High-risk population density, under 15 years old") +
+  tm_raster(style = "cont", palette = "-RdYlGn", title = "High-Risk population density, under 15 years old") +
   tm_shape(borno_LGAs) +
   tm_borders(col = "grey") +
   tm_layout(legend.outside = TRUE,
             frame = FALSE,
-            fontfamily = "Avenir",
-            legend.title.size = 1.2,
+            legend.title.size = 1,
             legend.text.size = 0.8,
-            title.size = 1.5,
-            bg.color = "white",
+            title.size = 3,
             panel.label.bg.color = "transparent",
             panel.label.color = "black")
+```
+
+And now to look at the percentage of the under 15 population per LGA that are at a high risk of terrorist attacks:
+
+```{r Population percentage at risk}
+# Calculate total population and high-risk population for each LGA
+borno_LGAs$total_child_population <- exact_extract(child_population_aligned, borno_LGAs, 'sum')
+borno_LGAs$high_risk_child_population <- exact_extract(high_risk_child_population, borno_LGAs, 'sum')
+
+# Calculate the percentage of under-15 population in high-risk areas
+borno_LGAs <- borno_LGAs %>%
+  mutate(percentage_high_risk_child = (high_risk_child_population / total_child_population) * 100)
+
+# Plot the results
+ggplot(borno_LGAs) +
+  geom_sf(aes(fill = percentage_high_risk_child)) +
+  scale_fill_viridis_c(name = "Percentage High Risk", 
+                       breaks = seq(0, 100, by = 10), 
+                       labels = c("0%", "10%", "20%", "30%", "40%", "50%", "60%", "70%", "80%", "90%", "100%"),
+                       limits = c(0, 100)) +
+  theme_minimal(base_family = "Avenir") +
+  labs(title = "Percentage of Under-15 Population in High-Risk Areas by LGA",
+       fill = "Percentage") +
+  theme(
+    panel.grid = element_blank(),
+    axis.title = element_blank(),
+    axis.text = element_blank(),
+    axis.ticks = element_blank()
+  )
 ```
