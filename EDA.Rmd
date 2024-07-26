@@ -66,15 +66,29 @@ nigeria_terrorism <- nigeria_terrorism[!is.na(nigeria_terrorism$latitude) & !is.
 nigeria_terrorism <- st_as_sf(nigeria_terrorism, coords = c("longitude", "latitude"), crs = 4326, agr = "constant")
 
 # Plotting terrorist incidents by year
-ggplot(nigeria_terrorism, aes(x = iyear)) +
+nigeria_terrorism$iyear <- as.factor(nigeria_terrorism$iyear)
+
+# Define the range of years
+years <- as.character(1976:2020)
+
+number_of_attacks <- ggplot(nigeria_terrorism, aes(x = iyear)) +
   geom_bar(fill = "#ef6030") +
+  scale_x_discrete(breaks = years) +  
   labs(title = "Number of Terrorism Incidents by Year",
        x = "Year",
        y = "Count of Incidents") +
   theme_minimal(base_family = "Avenir") +
   theme(panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
-        text = element_text(family = "Avenir"))
+        text = element_text(family = "Avenir", size = 14),  
+        plot.title = element_text(size = 20), 
+        axis.title = element_text(size = 16),  
+        axis.text = element_text(size = 12),  
+        axis.text.x = element_text(angle = 45, hjust = 1, size = 10))  
+
+number_of_attacks
+
+ggsave("number_of_attacks_per_year.png", plot = number_of_attacks, width = 10, height = 5, dpi = 300)
 ```
 
 Based on this, I can see that terrorism really became an issue from 2012 onwards. However, the Arab Spring begun in 2010 and was a time marked by religious conflict and upheaval. As a result, it makes most sense to analyse geospatial patterns of terrorism from 2010 to 2020 (the end of the dataset), as this accounts for the wider regional conflict that would've undoubtedbly had spillover effects in Nigeria.
@@ -115,18 +129,25 @@ recent_terrorism <- recent_terrorism %>%
   mutate(attack_type = factor(attack_type, levels = names(sort(table(attack_type), decreasing = TRUE))))
 
 # Plotting the bar chart
-ggplot(recent_terrorism, aes(x = attack_type)) +
+freq_of_attack_types <- ggplot(recent_terrorism, aes(x = attack_type)) +
   geom_bar(fill = "#ef6030") +
-  labs(title = "Frequency of attack types",
-       x = "Attack type",
+  labs(title = "Frequency of Attack Types",
+       x = "Attack Type",
        y = "Count of Incidents") +
   theme_minimal(base_family = "Avenir") +
   theme(
     panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(),
-    axis.text.x = element_text(angle = 60, hjust = 1, family = "Avenir"),
-    text = element_text(family = "Avenir")
+    text = element_text(family = "Avenir", size = 12),  
+    plot.title = element_text(size = 14),  
+    axis.title = element_text(size = 12),  
+    axis.text = element_text(size = 12),  
+    axis.text.x = element_text(angle = 60, hjust = 1, size = 12, family = "Avenir") 
   )
+
+freq_of_attack_types
+
+ggsave("freq_of_attack_types.png", plot = freq_of_attack_types, width = 10, height = 10, dpi = 300)
 ```
 The most popular terrorist attack style is armed assault, followed by bombings/explosion and hostage taking.
 
@@ -138,18 +159,25 @@ recent_terrorism <- recent_terrorism %>%
   mutate(target_category = factor(target_category, levels = names(sort(table(target_category), decreasing = TRUE))))
 
 # Plotting the bar chart
-ggplot(recent_terrorism, aes(x = target_category)) +
+attack_targets <- ggplot(recent_terrorism, aes(x = target_category)) +
   geom_bar(fill = "#ef6030") +
-  labs(title = "Attack targets",
+  labs(title = "Attack Targets",
        x = "Target",
        y = "Count of Incidents") +
   theme_minimal(base_family = "Avenir") +
   theme(
     panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(),
-    axis.text.x = element_text(angle = 60, hjust = 1, family = "Avenir"),
-    text = element_text(family = "Avenir")
+    text = element_text(family = "Avenir", size = 12),  
+    plot.title = element_text(size = 14, family = "Avenir"),  
+    axis.title = element_text(size = 12, family = "Avenir"),  
+    axis.text = element_text(size = 12, family = "Avenir"),  
+    axis.text.x = element_text(angle = 60, hjust = 1, size = 12, family = "Avenir")  
   )
+
+attack_targets
+
+ggsave("attack_targets.png", plot = attack_targets, width = 15, height = 10, dpi = 300)
 ```
 
 Private citizens and property are disproportionately targeted by terrorists, suggesting that indeed civilians are disproportionately taking on the brunt of attacks.
@@ -170,17 +198,27 @@ colnames(success_summary) <- c("AttackStatus", "Count")
 success_summary$Percentage <- round(100 * success_summary$Count / sum(success_summary$Count), 1)
 
 # Plotting the pie chart
-ggplot(success_summary, aes(x = "", y = Count, fill = AttackStatus)) +
+success <- ggplot(success_summary, aes(x = "", y = Count, fill = AttackStatus)) +
   geom_bar(stat = "identity", width = 1) +
   coord_polar("y") +
   theme_void(base_family = "Avenir") +
-  labs(title = "Terrorist attack success rate",
-       fill = "Attack status") +
+  labs(title = "Terrorist Attack Success Rate",
+       fill = "Attack Status") +
   scale_fill_manual(values = c("Unsuccessful attack" = "#F6DF0A", "Successful attack" = "#ef6030")) +
   geom_text(aes(label = paste0(Percentage, "%")), 
             position = position_stack(vjust = 0.5), 
-            family = "Avenir") +
-  theme(text = element_text(family = "Avenir"))
+            family = "Avenir", 
+            size = 5) +  
+  theme(
+    text = element_text(family = "Avenir", size = 12),  
+    plot.title = element_text(size = 14, family = "Avenir"),  
+    legend.title = element_text(size = 12, family = "Avenir"),  
+    legend.text = element_text(size = 12, family = "Avenir")
+  )
+
+success
+
+ggsave("success.png", plot = success, width = 10, height = 10, dpi = 300)
 ```
 
 Of the attacks that are carried out/registered, the vast majority (91%) are successful in causing harm.
@@ -189,7 +227,7 @@ Of the attacks that are carried out/registered, the vast majority (91%) are succ
 
 ```{r Plotting attacks as points across Nigeria}
 # Plotting points of attacks across the country
-ggplot() +
+point_of_attacks <- ggplot() +
   geom_sf(data = nigeria, fill = NA, color = "black", size = 1.5) + 
   geom_sf(data = states, fill = NA, color = "lightgrey") +
   geom_sf(data = recent_terrorism, color = "#ef6030", size = 0.1) +
@@ -204,6 +242,10 @@ ggplot() +
     panel.background = element_rect(fill = "white", color = NA),
     text = element_text(family = "Avenir")
   )
+
+point_of_attacks
+
+ggsave("point_of_attacks.png", plot = point_of_attacks, width = 7, height = 7, dpi = 300)
 ```
 
 Clearly, clustering can be seen amongst attacks that have taken place. To understand this a bit better, a thematic map will be generated to identify high-risk states. To ensure that the map is standardised however, terrorist attacks must be plotted as an incident rate.
@@ -251,7 +293,7 @@ states_terrorism <- states_terrorism %>%
 states_terrorism <- st_as_sf(states_terrorism, wkt = "geometry")
 
 # Plotting the rate of attacks 
-ggplot(states_terrorism) +
+rate_of_attacks <- ggplot(states_terrorism) +
   geom_sf(aes(fill = attacks_per_10000)) +
   scale_fill_gradient(low = "white", high = "#ef6030", name = "Attacks per 10,000 people") +
   labs(title = "Terrorist attacks per 10,000 people") +
@@ -262,6 +304,10 @@ ggplot(states_terrorism) +
     axis.text = element_blank(),      
     axis.ticks = element_blank()      
   )
+
+rate_of_attacks
+
+ggsave("rate_of_attacks.png", plot = rate_of_attacks, width = 10, height = 10, dpi = 300)
 ```
 
 And to plot this as a bar chart:
@@ -270,7 +316,7 @@ And to plot this as a bar chart:
 states_terrorism <- states_terrorism %>%
   mutate(state = factor(state, levels = state[order(-attacks_per_10000)]))
 
-ggplot(states_terrorism, aes(x = state, y = attacks_per_10000)) +
+by_state <- ggplot(states_terrorism, aes(x = state, y = attacks_per_10000)) +
   geom_bar(stat = "identity", fill = "#ef6030") +
   labs(title = "Attack rate by state",
        x = "State",
@@ -281,6 +327,10 @@ ggplot(states_terrorism, aes(x = state, y = attacks_per_10000)) +
     panel.grid.minor = element_blank(),
     axis.text.x = element_text(angle = 45, hjust = 1)
   )
+
+by_state
+
+ggsave("by_state.png", plot = by_state, width = 10, height = 5, dpi = 300)
 ```
 
 Evidently, Borno is disproportionately affected by terrorist attacks. I want to now take a closer look at the distribution of terrorist attacks per LGA within the state.
@@ -329,7 +379,7 @@ borno_LGAs$population <- sapply(1:nrow(borno_LGAs), function(i) calculate_popula
 borno_LGAs$population <- round(borno_LGAs$population, 0)
 
 # Plotting the population per LGA
-ggplot(data = borno_LGAs) +
+pop_LGA <- ggplot(data = borno_LGAs) +
   geom_sf(aes(fill = population)) +
   scale_fill_gradient(low = "white", high = "#ef6030", name = "Population", 
                       labels = scales::comma) +
@@ -342,6 +392,10 @@ ggplot(data = borno_LGAs) +
     axis.text = element_blank(),      
     axis.ticks = element_blank()      
   )
+
+pop_LGA
+
+ggsave("pop_LGA.png", plot = pop_LGA, width = 10, height = 5, dpi = 300)
 ```
 
 Finally, I want to look at the distribution of terrorist attacks relative to the population in each LGA.
@@ -359,7 +413,7 @@ borno_terrorism <- st_transform(borno_terrorism, crs(borno))
 borno_terrorism <- st_intersection(borno_terrorism, borno)
 
 # Plotting points of attacks across the country
-ggplot() +
+attacks_borno_LGA <- ggplot() +
   geom_sf(data = borno, fill = NA, color = "black", size = 1.5) + 
   geom_sf(data = borno_LGAs, fill = NA, color = "lightgrey") +
   geom_sf(data = borno_terrorism, aes(geometry = geometry), color = "#ef6030", size = 0.3) +
@@ -374,6 +428,10 @@ ggplot() +
     panel.background = element_rect(fill = "white", color = NA),
     text = element_text(family = "Avenir")
   )
+
+attacks_borno_LGA
+
+ggsave("attacks_borno_LGA.png", plot = attacks_borno_LGA, width = 10, height = 5, dpi = 300)
 ```
 
 ### Incident rate of attacks: Borno
@@ -402,7 +460,7 @@ borno_LGAs <- borno_LGAs %>%
 borno_LGAs$attack_per_1000 <- (borno_LGAs$attack_count / borno_LGAs$population) * 1000
 
 # Plotting this as a thematic map
-ggplot(borno_LGAs) +
+rate_borno <- ggplot(borno_LGAs) +
   geom_sf(aes(fill = attack_per_1000)) +
   scale_fill_gradient(low = "white", high = "#ef6030", name = "Attacks per 1,000 people") +
   theme_minimal(base_family = "Avenir") +
@@ -413,6 +471,10 @@ ggplot(borno_LGAs) +
     axis.text = element_blank(),      
     axis.ticks = element_blank()      
   )
+
+rate_borno
+
+ggsave("rate_borno.png", plot = rate_borno, width = 10, height = 5, dpi = 300)
 ```
 
 And finally, to plot this as a bar chart.
@@ -421,7 +483,7 @@ And finally, to plot this as a bar chart.
 borno_LGAs <- borno_LGAs %>%
   mutate(LGA = factor(LGA, levels = LGA[order(-attack_per_1000)]))
 
-ggplot(borno_LGAs, aes(x = LGA, y = attack_per_1000)) +
+rate_graph <- ggplot(borno_LGAs, aes(x = LGA, y = attack_per_1000)) +
   geom_bar(stat = "identity", fill = "#ef6030") +
   labs(title = "Attack rate by LGA",
        x = "LGA",
@@ -432,6 +494,10 @@ ggplot(borno_LGAs, aes(x = LGA, y = attack_per_1000)) +
     panel.grid.minor = element_blank(),
     axis.text.x = element_text(angle = 45, hjust = 1)
   )
+
+rate_graph
+
+ggsave("rate_graph.png", plot = rate_graph, width = 10, height = 5, dpi = 300)
 ```
 
 It appears that the LGA of Konduga is disproportionately affected by terrorist attacks and that the rate of attacks does not follow an identical pattern to population density.
@@ -463,7 +529,7 @@ expected_risk <- ggplot(borno_LGAs) +
   geom_sf(aes(fill = risk_expectation), color = "black") +
   scale_fill_manual(
     values = c("higher" = "#FEC4C4", "lower" = "#C4F2FE"),
-    name = "Expected risk of attack",
+    name = "Expected Risk of Attack",
     labels = c("higher" = "Higher than expected", "lower" = "Lower than expected")
   ) +
   geom_text(aes(label = round(risk_ratio, 2), geometry = geometry), 
@@ -475,11 +541,15 @@ expected_risk <- ggplot(borno_LGAs) +
     axis.title = element_blank(),
     axis.text = element_blank(),
     axis.ticks = element_blank(),
-    text = element_text(family = "Avenir"),
+    text = element_text(family = "Avenir", size = 16),  
+    plot.title = element_text(size = 18, family = "Avenir", face = "bold"),  
+    legend.title = element_text(size = 14, family = "Avenir"), 
+    legend.text = element_text(size = 14, family = "Avenir"), 
     legend.position = "right"
   )
 
+
 plot(expected_risk)
 
-ggsave("borno_terrorist_attacks_map.png", plot = expected_risk, width = 15, height = 15, dpi = 300)
+ggsave("expected_risk.png", plot = expected_risk, width = 15, height = 15, dpi = 300)
 ```
