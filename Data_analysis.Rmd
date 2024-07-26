@@ -2,6 +2,25 @@
 
 Part 2 contains the primary analysis portion of my dissertation. The aim of this analysis is to assert which factors impact terrorist attack occurrence using logistic regression, before combining these factors into a stack and employing the Maximum Entropy Model (MAXENT) to infer areas at risk of terrorist attacks given predictor variables.
 
+```{r Loading packages}
+library(sf)
+library(tmap)
+library(ggplot2)
+library(dplyr)
+library(lubridate)
+library(raster)
+library(extrafont)
+library(spdep)
+library(geostan)
+library(SpatialEpi)
+library(dismo)
+library(rJava)
+library(terra)
+library(pscl)
+library(exactextractr)
+library(extrafont)
+```
+
 ## Preparing factor data 
 
 For my model I will be dealing with point occurrence data of terrorist attacks in Borno state from 2010 to 2020 as well as raster data for each predictor variable. 
@@ -109,12 +128,15 @@ Now that all my predictor variables are in the correct crs and spatial extent (c
 ```{r Plotting predictor variable rasters}
 # Population
 population_map <- tm_shape(population_resampled) +
-  tm_raster(style = "quantile", title = "Pop/2.5km2", palette = "-RdYlBu") +
+  tm_raster(style = "cont", title = "Population /2.5km2", palette = "-RdYlBu") +
   tm_shape(borno) +
   tm_polygons(alpha = 0, border.col = "black") +
   tm_shape(borno_LGAs) +  
   tm_borders(col = "black", lwd = 0.3) + 
-  tm_layout(frame = FALSE, legend.position = c("left", "top"))
+  tm_layout(frame = FALSE, legend.position = c("left", "top"),
+            title.fontfamily = "Avenir", 
+            legend.text.fontfamily = "Avenir", 
+            legend.title.fontfamily = "Avenir")
 
 # Male literacy
 male_lit_map <- tm_shape(male_literacy_resampled) + 
@@ -123,7 +145,10 @@ male_lit_map <- tm_shape(male_literacy_resampled) +
   tm_polygons(alpha = 0, border.col = "black") +
   tm_shape(borno_LGAs) + 
   tm_borders(col = "black", lwd = 0.3) +
-  tm_layout(frame = FALSE, legend.position = c("left", "top"))
+  tm_layout(frame = FALSE, legend.position = c("left", "top"),
+            title.fontfamily = "Avenir", 
+            legend.text.fontfamily = "Avenir", 
+            legend.title.fontfamily = "Avenir")
 
 # Female literacy
 female_lit_map <- tm_shape(female_literacy_resampled) +
@@ -132,16 +157,22 @@ female_lit_map <- tm_shape(female_literacy_resampled) +
   tm_polygons(alpha = 0, border.col = "black") +
   tm_shape(borno_LGAs) + 
   tm_borders(col = "black", lwd = 0.3) +
-  tm_layout(frame = FALSE, legend.position = c("left", "top"))
+  tm_layout(frame = FALSE, legend.position = c("left", "top"),            
+            title.fontfamily = "Avenir", 
+            legend.text.fontfamily = "Avenir", 
+            legend.title.fontfamily = "Avenir")
 
 # School children
 school_children_map <- tm_shape(school_children_resampled) +
-  tm_raster(style = "quantile", title = "Children/2.5km2", palette = "-RdYlBu") +
+  tm_raster(style = "cont", title = "/2.5km2", palette = "-RdYlBu") +
   tm_shape(borno) +
   tm_polygons(alpha = 0, border.col = "black") +
   tm_shape(borno_LGAs) + 
   tm_borders(col = "black", lwd = 0.3) +
-  tm_layout(frame = FALSE, legend.position = c("left", "top"))
+  tm_layout(frame = FALSE, legend.position = c("left", "top"),
+            title.fontfamily = "Avenir", 
+            legend.text.fontfamily = "Avenir", 
+            legend.title.fontfamily = "Avenir")
 
 # Poverty
 poverty_map <- tm_shape(poverty_resampled) +
@@ -150,16 +181,22 @@ poverty_map <- tm_shape(poverty_resampled) +
   tm_polygons(alpha = 0, border.col = "black") +
   tm_shape(borno_LGAs) + 
   tm_borders(col = "black", lwd = 0.3) +
-  tm_layout(frame = FALSE, legend.position = c("left", "top"))
+  tm_layout(frame = FALSE, legend.position = c("left", "top"),
+            title.fontfamily = "Avenir", 
+            legend.text.fontfamily = "Avenir", 
+            legend.title.fontfamily = "Avenir")
 
 # Urban v rural
 urban_rural_map <- tm_shape(urban_rural_resampled) +
-  tm_raster(style = "cat", title = "Land Type", palette = c("yellow", "blue"), labels = c("Rural", "Urban")) +
+  tm_raster(style = "cat", title = "Land Type", palette = c("green", "blue"), labels = c("Rural", "Urban")) +
   tm_shape(borno) +
   tm_polygons(alpha = 0, border.col = "black") +
   tm_shape(borno_LGAs) + 
   tm_borders(col = "black", lwd = 0.3) +
-  tm_layout(frame = FALSE, legend.position = c("left", "top"))
+  tm_layout(frame = FALSE, legend.position = c("left", "top"),
+            title.fontfamily = "Avenir", 
+            legend.text.fontfamily = "Avenir", 
+            legend.title.fontfamily = "Avenir")
 
 # Topography
 topography_map <- tm_shape(topography_resampled) +
@@ -168,7 +205,10 @@ topography_map <- tm_shape(topography_resampled) +
   tm_polygons(alpha = 0, border.col = "black") +
   tm_shape(borno_LGAs) + 
   tm_borders(col = "black", lwd = 0.3) +
-  tm_layout(frame = FALSE, legend.position = c("left", "top"))
+  tm_layout(frame = FALSE, legend.position = c("left", "top"),
+            title.fontfamily = "Avenir", 
+            legend.text.fontfamily = "Avenir", 
+            legend.title.fontfamily = "Avenir")
 
 # Roads
 road_map <- tm_shape(roads_resampled) +
@@ -177,25 +217,34 @@ road_map <- tm_shape(roads_resampled) +
   tm_polygons(alpha = 0, border.col = "black") +
   tm_shape(borno_LGAs) + 
   tm_borders(col = "black", lwd = 0.3) +
-  tm_layout(frame = FALSE, legend.position = c("left", "top"))
+  tm_layout(frame = FALSE, legend.position = c("left", "top"),
+            title.fontfamily = "Avenir", 
+            legend.text.fontfamily = "Avenir", 
+            legend.title.fontfamily = "Avenir")
 
 # Educational facilities
 education_facilities_map <- tm_shape(education_facilities_resampled) +
-  tm_raster(style = "cat", title = "Facility presence", palette = c("yellow", "blue"), labels = c("No facilities", "Facilities")) +
+  tm_raster(style = "cat", title = "Facility presence", palette = c("yellow", "white"), labels = c("Facilities", "No facilities")) +
   tm_shape(borno) +
   tm_polygons(alpha = 0, border.col = "black") +
   tm_shape(borno_LGAs) + 
   tm_borders(col = "black", lwd = 0.3) +
-  tm_layout(frame = FALSE, legend.position = c("left", "top"))
+  tm_layout(frame = FALSE, legend.position = c("left", "top"),
+            title.fontfamily = "Avenir", 
+            legend.text.fontfamily = "Avenir", 
+            legend.title.fontfamily = "Avenir")
 
 # Mosques
 mosques_map <- tm_shape(mosques_resampled) +
-  tm_raster(style = "cat", title = "Mosque presence", palette = c("yellow", "blue"), labels = c("No Mosque", "Mosque")) +
+  tm_raster(style = "cat", title = "Mosque presence", palette = c("purple", "white"), labels = c("Mosques", "No mosques")) +
   tm_shape(borno) +
   tm_polygons(alpha = 0, border.col = "black") +
   tm_shape(borno_LGAs) + 
   tm_borders(col = "black", lwd = 0.3) +
-  tm_layout(frame = FALSE, legend.position = c("left", "top"))
+  tm_layout(frame = FALSE, legend.position = c("left", "top"),
+            title.fontfamily = "Avenir", 
+            legend.text.fontfamily = "Avenir", 
+            legend.title.fontfamily = "Avenir")
 ```
 
 ```{r Plotting rasters}
@@ -509,7 +558,7 @@ plot(high_risk_population, main="Population Density in High-Risk Areas", col=ter
 
 # Plotting the resulting raster
 tm_shape(high_risk_population) +
-  tm_raster(style = "cont", palette = "-RdYlGn", title = "High-Risk Population Density") +
+  tm_raster(style = "cont", palette = "PuRd", title = "High-Risk Population Density") +
   tm_shape(borno_LGAs) +
   tm_borders(col = "grey") +
   tm_layout(legend.outside = TRUE,
@@ -578,7 +627,7 @@ plot(high_risk_child_population, main="Density of population under 15 across hig
 
 # Plotting the resulting raster
 tm_shape(high_risk_child_population) +
-  tm_raster(style = "cont", palette = "-RdYlGn", title = "High-Risk population density, under 15 years old") +
+  tm_raster(style = "cont", palette = "PuRd", title = "High-Risk population density, under 15 years old") +
   tm_shape(borno_LGAs) +
   tm_borders(col = "grey") +
   tm_layout(legend.outside = TRUE,
