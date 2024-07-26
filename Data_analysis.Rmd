@@ -479,7 +479,7 @@ I want to now apply this predictive map to see which populations are most at ris
 
 Firstly, I will look at general populations at risk.
 
-```{r Populations at high risk of terrorist attacks}
+```{r Populations at high risk}
 # Re-loading raster
 suitability <- raster('suitability_attacks.tif')
 population_resampled <- raster('population_raster_final.tif')
@@ -523,7 +523,7 @@ tm_shape(high_risk_population) +
 
 Now I want to look at the percentage of each LGAs population who are at risk of terrorist attacks so I can consider relative risk across the state.
 
-```{r Population percentage at risk}
+```{r Percent of population at risk}
 # Calculate total population and high-risk population for each LGA
 borno_LGAs$total_population <- exact_extract(population_aligned, borno_LGAs, 'sum')
 borno_LGAs$high_risk_population <- exact_extract(high_risk_population, borno_LGAs, 'sum')
@@ -551,7 +551,7 @@ ggplot(borno_LGAs) +
 ```
 Finally, I shall do the same but for populations under 15 years old.
 
-```{r Populations under 15 at high risk of terrorist attacks}
+```{r Populations under 15 at high risk}
 # Re-loading raster
 suitability <- raster('suitability_attacks.tif')
 child_population <- raster('child_pop.tif')
@@ -592,7 +592,7 @@ tm_shape(high_risk_child_population) +
 
 And now to look at the percentage of the under 15 population per LGA that are at a high risk of terrorist attacks:
 
-```{r Population percentage at risk}
+```{r Percent of population under 15 at risk}
 # Calculate total population and high-risk population for each LGA
 borno_LGAs$total_child_population <- exact_extract(child_population_aligned, borno_LGAs, 'sum')
 borno_LGAs$high_risk_child_population <- exact_extract(high_risk_child_population, borno_LGAs, 'sum')
