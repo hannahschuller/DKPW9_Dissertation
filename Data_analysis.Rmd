@@ -2,6 +2,25 @@
 
 Part 2 contains the primary analysis portion of my dissertation. The aim of this analysis is to assert which factors impact terrorist attack occurrence using logistic regression, before combining these factors into a stack and employing the Maximum Entropy Model (MAXENT) to infer areas at risk of terrorist attacks given predictor variables.
 
+```{r Sorting memory allocation}
+# Setting Java heap space to 8GB
+options(java.parameters = "-Xmx8g")
+
+# Loading rJava library
+library(rJava)
+
+# Initialising JVM
+.jinit()
+
+# Checking the max memory allocated to the JVM
+runtime <- .jcall("java/lang/Runtime", "Ljava/lang/Runtime;", "getRuntime")
+max_memory <- .jcall(runtime, "J", "maxMemory")
+
+# Printing this
+max_memory_gb <- max_memory / (1024^3)
+print(paste("Max memory allocated to JVM:", max_memory_gb, "GB"))
+```
+
 ```{r Loading packages}
 library(sf)
 library(tmap)
@@ -12,9 +31,7 @@ library(raster)
 library(extrafont)
 library(spdep)
 library(geostan)
-library(SpatialEpi)
 library(dismo)
-library(rJava)
 library(terra)
 library(pscl)
 library(exactextractr)
@@ -125,14 +142,15 @@ mosques_resampled <- raster('mosques_raster_final.tif')
 
 Now that all my predictor variables are in the correct crs and spatial extent (clipped to Borno shapefile), I will quickly visualise these. 
 
-```{r Plotting predictor variable rasters}
+```{r Plot 1: Variables}
 # Population
 population_map <- tm_shape(population_resampled) +
-  tm_raster(style = "cont", title = "Population /2.5km2", palette = "-RdYlBu") +
+  tm_raster(style = "cont", title = "Count /2.5km2", palette = "YlGnBu") +
   tm_shape(borno) +
   tm_polygons(alpha = 0, border.col = "black") +
   tm_shape(borno_LGAs) +  
   tm_borders(col = "black", lwd = 0.3) + 
+  tm_scale_bar(position = c("right", "bottom")) + 
   tm_layout(frame = FALSE, legend.position = c("left", "top"),
             title.fontfamily = "Avenir", 
             legend.text.fontfamily = "Avenir", 
@@ -145,6 +163,7 @@ male_lit_map <- tm_shape(male_literacy_resampled) +
   tm_polygons(alpha = 0, border.col = "black") +
   tm_shape(borno_LGAs) + 
   tm_borders(col = "black", lwd = 0.3) +
+  tm_scale_bar(position = c("right", "bottom")) + 
   tm_layout(frame = FALSE, legend.position = c("left", "top"),
             title.fontfamily = "Avenir", 
             legend.text.fontfamily = "Avenir", 
@@ -152,11 +171,12 @@ male_lit_map <- tm_shape(male_literacy_resampled) +
 
 # Female literacy
 female_lit_map <- tm_shape(female_literacy_resampled) +
-  tm_raster(style = "cont", title = "%", palette = "Blues", breaks = seq(0, 1, by = 0.2), labels = c("0", "20", "40", "60", "80", "100")) +
+  tm_raster(style = "cont", title = "%", palette = "Reds", breaks = seq(0, 1, by = 0.2), labels = c("0", "20", "40", "60", "80", "100")) +
   tm_shape(borno) +
   tm_polygons(alpha = 0, border.col = "black") +
   tm_shape(borno_LGAs) + 
-  tm_borders(col = "black", lwd = 0.3) +
+  tm_borders(col = "black", lwd = 0.3) +  
+  tm_scale_bar(position = c("right", "bottom")) + 
   tm_layout(frame = FALSE, legend.position = c("left", "top"),            
             title.fontfamily = "Avenir", 
             legend.text.fontfamily = "Avenir", 
@@ -164,11 +184,12 @@ female_lit_map <- tm_shape(female_literacy_resampled) +
 
 # School children
 school_children_map <- tm_shape(school_children_resampled) +
-  tm_raster(style = "cont", title = "/2.5km2", palette = "-RdYlBu") +
+  tm_raster(style = "cont", title = "Count /2.5km2", palette = "GnBu") +
   tm_shape(borno) +
   tm_polygons(alpha = 0, border.col = "black") +
   tm_shape(borno_LGAs) + 
-  tm_borders(col = "black", lwd = 0.3) +
+  tm_borders(col = "black", lwd = 0.3) +   
+  tm_scale_bar(position = c("right", "bottom")) + 
   tm_layout(frame = FALSE, legend.position = c("left", "top"),
             title.fontfamily = "Avenir", 
             legend.text.fontfamily = "Avenir", 
@@ -176,11 +197,12 @@ school_children_map <- tm_shape(school_children_resampled) +
 
 # Poverty
 poverty_map <- tm_shape(poverty_resampled) +
-  tm_raster(style = "cont", title = "% living on >$1.25/d", palette = "-RdYlBu", breaks = seq(0, 1, by = 0.2), labels = c("0", "20", "40", "60", "80", "100")) +
+  tm_raster(style = "cont", title = "% living on >$1.25/d", palette = "GnBu", breaks = seq(0, 1, by = 0.2), labels = c("0", "20", "40", "60", "80", "100")) +
   tm_shape(borno) +
   tm_polygons(alpha = 0, border.col = "black") +
   tm_shape(borno_LGAs) + 
-  tm_borders(col = "black", lwd = 0.3) +
+  tm_borders(col = "black", lwd = 0.3) +  
+  tm_scale_bar(position = c("right", "bottom")) + 
   tm_layout(frame = FALSE, legend.position = c("left", "top"),
             title.fontfamily = "Avenir", 
             legend.text.fontfamily = "Avenir", 
@@ -188,11 +210,12 @@ poverty_map <- tm_shape(poverty_resampled) +
 
 # Urban v rural
 urban_rural_map <- tm_shape(urban_rural_resampled) +
-  tm_raster(style = "cat", title = "Land Type", palette = c("green", "blue"), labels = c("Rural", "Urban")) +
+  tm_raster(style = "cat", title = "Land Type", palette = c("#DFF8BD", "#CB6CF4"), labels = c("Rural", "Urban")) +
   tm_shape(borno) +
   tm_polygons(alpha = 0, border.col = "black") +
   tm_shape(borno_LGAs) + 
-  tm_borders(col = "black", lwd = 0.3) +
+  tm_borders(col = "black", lwd = 0.3) +  
+  tm_scale_bar(position = c("right", "bottom")) + 
   tm_layout(frame = FALSE, legend.position = c("left", "top"),
             title.fontfamily = "Avenir", 
             legend.text.fontfamily = "Avenir", 
@@ -200,11 +223,12 @@ urban_rural_map <- tm_shape(urban_rural_resampled) +
 
 # Topography
 topography_map <- tm_shape(topography_resampled) +
-  tm_raster(style = "cont", title = "Elevation (m)", palette= "Greys") +
+  tm_raster(style = "cont", title = "Elevation /m", palette= "YlOrBr") +
   tm_shape(borno) +
   tm_polygons(alpha = 0, border.col = "black") +
   tm_shape(borno_LGAs) + 
-  tm_borders(col = "black", lwd = 0.3) +
+  tm_borders(col = "black", lwd = 0.3) +  
+  tm_scale_bar(position = c("right", "bottom")) + 
   tm_layout(frame = FALSE, legend.position = c("left", "top"),
             title.fontfamily = "Avenir", 
             legend.text.fontfamily = "Avenir", 
@@ -212,11 +236,12 @@ topography_map <- tm_shape(topography_resampled) +
 
 # Roads
 road_map <- tm_shape(roads_resampled) +
-  tm_raster(style = "cont", title = "Distance (km)", palette= "Oranges") +
+  tm_raster(style = "cont", title = "Distance /km", palette= "PuRd") +
   tm_shape(borno) +
   tm_polygons(alpha = 0, border.col = "black") +
   tm_shape(borno_LGAs) + 
-  tm_borders(col = "black", lwd = 0.3) +
+  tm_borders(col = "black", lwd = 0.3) +  
+  tm_scale_bar(position = c("right", "bottom")) + 
   tm_layout(frame = FALSE, legend.position = c("left", "top"),
             title.fontfamily = "Avenir", 
             legend.text.fontfamily = "Avenir", 
@@ -224,11 +249,12 @@ road_map <- tm_shape(roads_resampled) +
 
 # Educational facilities
 education_facilities_map <- tm_shape(education_facilities_resampled) +
-  tm_raster(style = "cat", title = "Facility presence", palette = c("yellow", "white"), labels = c("Facilities", "No facilities")) +
+  tm_raster(style = "cat", title = "Facility presence", palette = c("#1C41F1", "#DBFFFD"), labels = c("Facilities", "No facilities")) +
   tm_shape(borno) +
   tm_polygons(alpha = 0, border.col = "black") +
   tm_shape(borno_LGAs) + 
-  tm_borders(col = "black", lwd = 0.3) +
+  tm_borders(col = "black", lwd = 0.3) +  
+  tm_scale_bar(position = c("right", "bottom")) + 
   tm_layout(frame = FALSE, legend.position = c("left", "top"),
             title.fontfamily = "Avenir", 
             legend.text.fontfamily = "Avenir", 
@@ -236,11 +262,12 @@ education_facilities_map <- tm_shape(education_facilities_resampled) +
 
 # Mosques
 mosques_map <- tm_shape(mosques_resampled) +
-  tm_raster(style = "cat", title = "Mosque presence", palette = c("purple", "white"), labels = c("Mosques", "No mosques")) +
+  tm_raster(style = "cat", title = "Mosque presence", palette = c("#F6BD05", "#F7FFA8"), labels = c("Mosques", "No mosques")) +
   tm_shape(borno) +
   tm_polygons(alpha = 0, border.col = "black") +
   tm_shape(borno_LGAs) + 
-  tm_borders(col = "black", lwd = 0.3) +
+  tm_borders(col = "black", lwd = 0.3) +  
+  tm_scale_bar(position = c("right", "bottom")) + 
   tm_layout(frame = FALSE, legend.position = c("left", "top"),
             title.fontfamily = "Avenir", 
             legend.text.fontfamily = "Avenir", 
@@ -475,28 +502,34 @@ plot(final_maxent_model, pch=19, xlab = "Percentage [%]", cex=1.2)
 
 Next I will generate a predicted probability map from the above prob_attack object. 
 
-```{r Mapping 1: Predicted probability}
-tmap_mode("plot")
+```{r Plot 2: Predicted probability}
+prob_attack_map <- tm_shape(prob_attack) +
+  tm_raster(style = 'cont', title = "Predicted probability", palette = '-RdYlBu', breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1.0)) +
+  tm_shape(borno) + 
+  tm_polygons(alpha = 0, border.col = "black") +
+  tm_shape(borno_LGAs) + 
+  tm_borders(col = "black", lwd = 0.3) +
+  tm_scale_bar(position = c("right", "bottom")) + 
+  tm_layout(
+    legend.text.size = 0.7, 
+    legend.title.size = 0.9, 
+    fontfamily = "Avenir",
+    frame = FALSE,
+    legend.position = c("left", "top"),
+    title.fontfamily = "Avenir",
+    legend.text.fontfamily = "Avenir",
+    legend.title.fontfamily = "Avenir"
+  )
 
-tm_shape(prob_attack) +
-    tm_raster(title = "Predicted probability", palette = '-RdYlBu', style = 'cont', breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1.0)) +
-    tm_shape(borno) + 
-    tm_polygons(alpha = 0, border.col = "black") +
-    tm_layout(
-      main.title = "Predicted probability of terrorist attacks", 
-      title.size = 1, 
-      legend.text.size = 0.4, 
-      legend.title.size = 0.8, 
-      fontfamily = "Avenir"
-    )
+prob_attack_map
 
-tmap_save(predicted_prob, filename = "predicted_prob.png", width = 2000, height = 2000, dpi = 300)
+tmap_save(prob_attack_map, filename = "prob_attack_map.png", width = 2000, height = 2000, dpi = 300)
 ```
 Now I want to create a binary raster of expected trigger points for terrorist attacks across Borno. This will use the optimal threshold value from my cross validation object to reclassify the raster.
 
 This will use the threshold value of 0.4377834, with anything estimated below this being classified as 0 whilst anything above as 1. 
 
-```{r Mapping 2: Binary threshold}
+```{r Plot 3: Binary threshold}
 # Reclassifying raster with threshold value 
 create_classes_vector <- c(0, Mean_OptMAX, 0, Mean_OptMAX, 1, 1)
 create_clasess_matrix <- matrix(create_classes_vector, ncol = 3, byrow = TRUE)
@@ -508,18 +541,25 @@ suitability_attacks <- reclassify(prob_attack, create_clasess_matrix)
 # Saving this
 writeRaster(suitability_attacks, filename = "suitability_attacks.tif", overwrite = TRUE)
 
+# Reloading
+suitability_attacks <- raster("suitability_attacks.tif")
+
 # Plot
-tm_shape(suitability_attacks) + 
-  tm_raster(style = "cat", title = "Threshold", palette = c("lightgrey", "#ef6030"), labels = c("Low threat", "Trigger points")) +
-tm_shape(borno) + 
+suitability_map <- tm_shape(suitability_attacks) +
+  tm_raster(style = "cat", title = "Threshold", palette = c("#EBEBE7", "#ef6030"), labels = c("Low threat", "Trigger points")) +
+  tm_shape(borno) +
   tm_polygons(alpha = 0, border.col = "black") +
-tm_layout(
-  frame = FALSE, 
-  legend.outside = TRUE, 
-  fontfamily = "Avenir",
-  title.color = "black",
-  legend.text.color = "black"
-) 
+  tm_scale_bar(position = c("right", "bottom")) + 
+  tm_layout(frame = FALSE, legend.position = c("left", "top"),
+            legend.text.size = 0.7, 
+            legend.title.size = 0.9,
+            title.fontfamily = "Avenir", 
+            legend.text.fontfamily = "Avenir", 
+            legend.title.fontfamily = "Avenir")
+
+suitability_map
+
+tmap_save(suitability_map, filename = "suitability_map.png", width = 2000, height = 2000, dpi = 300)
 ```
 
 ## Identifying at-risk populations
@@ -528,7 +568,7 @@ I want to now apply this predictive map to see which populations are most at ris
 
 Firstly, I will look at general populations at risk.
 
-```{r Populations at high risk}
+```{r Plot 4: Populations at high risk}
 # Re-loading raster
 suitability <- raster('suitability_attacks.tif')
 population_resampled <- raster('population_raster_final.tif')
@@ -553,27 +593,37 @@ high_risk_population[high_risk_population == 0] <- NA
 # Saving raster 
 writeRaster(high_risk_population, 'high_risk_population.tif', format='GTiff', overwrite=TRUE)
 
-# Plot the resulting raster
-plot(high_risk_population, main="Population Density in High-Risk Areas", col=terrain.colors(100), na.color="transparent")
-
 # Plotting the resulting raster
-tm_shape(high_risk_population) +
-  tm_raster(style = "cont", palette = "PuRd", title = "High-Risk Population Density") +
-  tm_shape(borno_LGAs) +
-  tm_borders(col = "grey") +
-  tm_layout(legend.outside = TRUE,
-            frame = FALSE,
-            legend.title.size = 1,
-            legend.text.size = 0.8,
-            title.size = 3,
-            panel.label.bg.color = "transparent",
-            panel.label.color = "black")
+high_risk_population <- tm_shape(high_risk_population) +
+  tm_raster(style = 'cont', title = "Population density", palette = 'Reds') +
+  tm_shape(borno) + 
+  tm_polygons(alpha = 0, border.col = "grey") +
+  tm_shape(borno_LGAs) + 
+  tm_borders(col = "black", lwd = 0.3) +
+  tm_scale_bar(position = c("right", "bottom")) + 
+  tm_layout(
+    legend.text.size = 0.7, 
+    legend.title.size = 0.9, 
+    fontfamily = "Avenir",
+    frame = FALSE,
+    legend.position = c("left", "top"),
+    title.fontfamily = "Avenir",
+    legend.text.fontfamily = "Avenir",
+    legend.title.fontfamily = "Avenir"
+  )
+
+high_risk_population
+
+tmap_save(high_risk_population, filename = "high_risk_population.png", width = 2000, height = 2000, dpi = 300)
 ```
 
 Now I want to look at the percentage of each LGAs population who are at risk of terrorist attacks so I can consider relative risk across the state.
 
-```{r Percent of population at risk}
+```{r Plot 5: Percentage of population at risk}
 # Calculate total population and high-risk population for each LGA
+population_aligned <- raster('population_aligned.tif')
+high_risk_population <- raster('high_risk_population.tif')
+
 borno_LGAs$total_population <- exact_extract(population_aligned, borno_LGAs, 'sum')
 borno_LGAs$high_risk_population <- exact_extract(high_risk_population, borno_LGAs, 'sum')
 
@@ -582,29 +632,34 @@ borno_LGAs <- borno_LGAs %>%
   mutate(percentage_high_risk = (high_risk_population / total_population) * 100)
 
 # Plot the results
-ggplot(borno_LGAs) +
+pop_at_risk <- ggplot(borno_LGAs) +
   geom_sf(aes(fill = percentage_high_risk)) +
-  scale_fill_viridis_c(name = "Percentage High Risk", 
+  scale_fill_viridis_c(name = "% at risk", 
                        breaks = seq(0, 100, by = 10), 
-                       labels = c("0%", "10%", "20%", "30%", "40%", "50%", "60%", "70%", "80%", "90%", "100%"),
+                       labels = c("0", "10", "20", "30", "40", "50", "60", "70", "80", "90", "100"),
                        limits = c(0, 100)) +
   theme_minimal(base_family = "Avenir") +
-  labs(title = "Percentage of Population in High-Risk Areas by LGA",
-       fill = "Percentage") +
+  labs(title = "High-risk population by LGA",
+       fill = "") +
   theme(
     panel.grid = element_blank(),
     axis.title = element_blank(),
     axis.text = element_blank(),
     axis.ticks = element_blank()
   )
+
+pop_at_risk
+
+ggsave("pop_at_risk.png", plot = pop_at_risk, width = 10, height = 10, dpi = 300)
 ```
 Finally, I shall do the same but for populations under 15 years old.
 
-```{r Populations under 15 at high risk}
+```{r Plot 6: Populations under 15 at high risk}
 # Re-loading raster
 suitability <- raster('suitability_attacks.tif')
 child_population <- raster('child_pop.tif')
 child_population_aligned <- raster('child_population_aligned.tif')
+high_risk_child_population <- raster('high_risk_child_population.tif')
 
 # Resampling the population raster to match the suitability raster
 template <- raster(extent(suitability), res=res(suitability), crs=crs(suitability))
@@ -622,26 +677,33 @@ high_risk_child_population[high_risk_child_population == 0] <- NA
 # Saving raster 
 writeRaster(high_risk_child_population, 'high_risk_child_population.tif', format='GTiff', overwrite=TRUE)
 
-# Plot the resulting raster
-plot(high_risk_child_population, main="Density of population under 15 across high risk areas", col=terrain.colors(100), na.color="transparent")
-
 # Plotting the resulting raster
-tm_shape(high_risk_child_population) +
-  tm_raster(style = "cont", palette = "PuRd", title = "High-Risk population density, under 15 years old") +
-  tm_shape(borno_LGAs) +
-  tm_borders(col = "grey") +
-  tm_layout(legend.outside = TRUE,
-            frame = FALSE,
-            legend.title.size = 1,
-            legend.text.size = 0.8,
-            title.size = 3,
-            panel.label.bg.color = "transparent",
-            panel.label.color = "black")
+high_risk_child_pop <- tm_shape(high_risk_child_population) +
+  tm_raster(style = 'cont', title = "Population density <15", palette = 'Purples') +
+  tm_shape(borno) + 
+  tm_polygons(alpha = 0, border.col = "grey") +
+  tm_shape(borno_LGAs) + 
+  tm_borders(col = "black", lwd = 0.3) +
+  tm_scale_bar(position = c("right", "bottom")) + 
+  tm_layout(
+    legend.text.size = 0.7, 
+    legend.title.size = 0.9, 
+    fontfamily = "Avenir",
+    frame = FALSE,
+    legend.position = c("left", "top"),
+    title.fontfamily = "Avenir",
+    legend.text.fontfamily = "Avenir",
+    legend.title.fontfamily = "Avenir"
+  )
+
+high_risk_child_pop
+
+tmap_save(high_risk_child_pop, filename = "high_risk_child_pop.png", width = 2000, height = 2000, dpi = 300)
 ```
 
 And now to look at the percentage of the under 15 population per LGA that are at a high risk of terrorist attacks:
 
-```{r Percent of population under 15 at risk}
+```{r Plot 7: Percentage of population under 15 at risk}
 # Calculate total population and high-risk population for each LGA
 borno_LGAs$total_child_population <- exact_extract(child_population_aligned, borno_LGAs, 'sum')
 borno_LGAs$high_risk_child_population <- exact_extract(high_risk_child_population, borno_LGAs, 'sum')
@@ -651,19 +713,23 @@ borno_LGAs <- borno_LGAs %>%
   mutate(percentage_high_risk_child = (high_risk_child_population / total_child_population) * 100)
 
 # Plot the results
-ggplot(borno_LGAs) +
+child_pop_at_risk <- ggplot(borno_LGAs) +
   geom_sf(aes(fill = percentage_high_risk_child)) +
-  scale_fill_viridis_c(name = "Percentage High Risk", 
+  scale_fill_viridis_c(name = "% at risk", 
                        breaks = seq(0, 100, by = 10), 
-                       labels = c("0%", "10%", "20%", "30%", "40%", "50%", "60%", "70%", "80%", "90%", "100%"),
+                       labels = c("0", "10", "20", "30", "40", "50", "60", "70", "80", "90", "100"),
                        limits = c(0, 100)) +
   theme_minimal(base_family = "Avenir") +
-  labs(title = "Percentage of Under-15 Population in High-Risk Areas by LGA",
-       fill = "Percentage") +
+  labs(title = "High risk population (<15) by LGA",
+       fill = "%") +
   theme(
     panel.grid = element_blank(),
     axis.title = element_blank(),
     axis.text = element_blank(),
     axis.ticks = element_blank()
   )
+
+child_pop_at_risk
+
+ggsave("child_pop_at_risk.png", plot = child_pop_at_risk, width = 10, height = 10, dpi = 300)
 ```
