@@ -20,6 +20,8 @@ library(rJava)
 library(terra)
 library(pscl)
 library(exactextractr)
+library(ggspatial)
+library(ggrepel)
 ```
 
 ```{r Reading in data}
@@ -243,7 +245,8 @@ point_of_attacks <- ggplot() +
     plot.background = element_rect(fill = "white", color = NA),
     panel.background = element_rect(fill = "white", color = NA),
     text = element_text(family = "Avenir")
-  )
+  ) +
+  annotation_scale(location = "br", width_hint = 0.2)  
 
 point_of_attacks
 
@@ -294,23 +297,25 @@ states_terrorism <- states_terrorism %>%
 # Convert the geometry column back to sf format if it's not already
 states_terrorism <- st_as_sf(states_terrorism, wkt = "geometry")
 ```
+
 ```{r Plot 6: Attacks per 10,000 people}
 # Plotting the rate of attacks 
 rate_of_attacks <- ggplot(states_terrorism) +
   geom_sf(aes(fill = attacks_per_10000)) +
-  scale_fill_gradient(low = "white", high = "#ef6030", name = "Attacks per 10,000 people") +
+  scale_fill_gradient(low = "white", high = "#ef6030", name = "Attacks /10,000 people") +
   labs(title = "Terrorist attacks per 10,000 people") +
   theme_minimal(base_family = "Avenir") +
   theme(
-    panel.grid = element_blank(),      
-    axis.title = element_blank(),      
-    axis.text = element_blank(),      
-    axis.ticks = element_blank()      
-  )
+    panel.grid = element_blank(),
+    axis.title = element_blank(),
+    axis.text = element_blank(),
+    axis.ticks = element_blank()
+  ) +
+  geom_sf_text(aes(label = state), size = 3, check_overlap = TRUE, family = "Avenir")
 
 rate_of_attacks
 
-ggsave("rate_of_attacks.png", plot = rate_of_attacks, width = 10, height = 10, dpi = 300)
+ggsave("rate_of_attacks.png", plot = rate_of_attacks, width = 15, height = 15, dpi = 300)
 ```
 
 And to plot this as a bar chart:
@@ -381,6 +386,7 @@ borno_LGAs$population <- sapply(1:nrow(borno_LGAs), function(i) calculate_popula
 # Making the population count a whole number
 borno_LGAs$population <- round(borno_LGAs$population, 0)
 ```
+
 ```{r Plot 8: Population across Borno LGAs}
 # Plotting the population per LGA
 pop_LGA <- ggplot(data = borno_LGAs) +
@@ -389,17 +395,17 @@ pop_LGA <- ggplot(data = borno_LGAs) +
                       labels = scales::comma) +
   theme_minimal(base_family = "Avenir") +
   labs(title = "Population distribution across Borno",
-       fill = "Population") +
+       fill = "Count") +
   theme(
     panel.grid = element_blank(),      
     axis.title = element_blank(),      
     axis.text = element_blank(),      
-    axis.ticks = element_blank()      
-  )
+    axis.ticks = element_blank()) +
+  annotation_scale(location = "br", width_hint = 0.2)  
 
 pop_LGA
 
-ggsave("pop_LGA.png", plot = pop_LGA, width = 10, height = 5, dpi = 300)
+ggsave("pop_LGA.png", plot = pop_LGA, width = 10, height = 10, dpi = 300)
 ```
 
 Finally, I want to look at the distribution of terrorist attacks relative to the population in each LGA.
@@ -430,12 +436,12 @@ attacks_borno_LGA <- ggplot() +
     axis.ticks = element_blank(),         
     plot.background = element_rect(fill = "white", color = NA),
     panel.background = element_rect(fill = "white", color = NA),
-    text = element_text(family = "Avenir")
-  )
+    text = element_text(family = "Avenir")) +
+    annotation_scale(location = "br", width_hint = 0.2)  
 
 attacks_borno_LGA
 
-ggsave("attacks_borno_LGA.png", plot = attacks_borno_LGA, width = 10, height = 5, dpi = 300)
+ggsave("attacks_borno_LGA.png", plot = attacks_borno_LGA, width = 10, height = 10, dpi = 300)
 ```
 
 ### Incident rate of attacks: Borno
@@ -463,19 +469,20 @@ borno_LGAs <- borno_LGAs %>%
 # Calculating a rate of attacks per 1,000 people
 borno_LGAs$attack_per_1000 <- (borno_LGAs$attack_count / borno_LGAs$population) * 1000
 ```
+
 ```{r Plot 10: Attack rate per 1,000 people in LGAs}
 # Plotting this as a thematic map
 rate_borno <- ggplot(borno_LGAs) +
   geom_sf(aes(fill = attack_per_1000)) +
-  scale_fill_gradient(low = "white", high = "#ef6030", name = "Attacks per 1,000 people") +
+  scale_fill_gradient(low = "white", high = "#ef6030", name = "Attacks /1,000 people") +
   theme_minimal(base_family = "Avenir") +
   labs(title = "Terrorist attack rate by LGA across Borno state") +
   theme(
     panel.grid = element_blank(),      
     axis.title = element_blank(),      
     axis.text = element_blank(),      
-    axis.ticks = element_blank()      
-  )
+    axis.ticks = element_blank()) +
+    annotation_scale(location = "br", width_hint = 0.2)  
 
 rate_borno
 
@@ -552,9 +559,8 @@ expected_risk <- ggplot(borno_LGAs) +
     plot.title = element_text(size = 18, family = "Avenir", face = "bold"),  
     legend.title = element_text(size = 14, family = "Avenir"), 
     legend.text = element_text(size = 14, family = "Avenir"), 
-    legend.position = "right"
-  )
-
+    legend.position = "right") +
+    annotation_scale(location = "br", width_hint = 0.2)  
 
 plot(expected_risk)
 
