@@ -51,11 +51,10 @@ LGAs <- LGAs %>%
 
 ### Temporal nature of attacks: Nigeria
 
-```{r Extracting Nigerian terrorism}
+```{r Cleaning}
+# Filtering to get only Nigeria
 nigeria_terrorism <- global_terrorism %>% filter(country_txt == "Nigeria")
-```
 
-```{r Cleaning the new Nigerian terrorism dataset}
 # Keeping only necessary columns
 nigeria_terrorism <- dplyr::select(nigeria_terrorism, 2, 3, 4, 12, 13, 14, 15, 27, 30, 36, 39, 40)
 
@@ -70,7 +69,10 @@ nigeria_terrorism$iyear <- as.factor(nigeria_terrorism$iyear)
 
 # Define the range of years
 years <- as.character(1976:2020)
+```
 
+```{r Plot 1: Attacks per year}
+# Plotting
 number_of_attacks <- ggplot(nigeria_terrorism, aes(x = iyear)) +
   geom_bar(fill = "#ef6030") +
   scale_x_discrete(breaks = years) +  
@@ -93,7 +95,7 @@ ggsave("number_of_attacks_per_year.png", plot = number_of_attacks, width = 10, h
 
 Based on this, I can see that terrorism really became an issue from 2012 onwards. However, the Arab Spring begun in 2010 and was a time marked by religious conflict and upheaval. As a result, it makes most sense to analyse geospatial patterns of terrorism from 2010 to 2020 (the end of the dataset), as this accounts for the wider regional conflict that would've undoubtedbly had spillover effects in Nigeria.
 
-```{r Further dataset filtering and cleaning}
+```{r Further cleaning}
 # Filtering by the relevant years
 recent_terrorism <- nigeria_terrorism %>% filter(iyear >= 2010 & iyear <= 2020)
 
@@ -123,7 +125,7 @@ Now I want to have a better look at what kind of attacks are occurring and where
 
 ### Attack types: Nigeria
 
-```{r Kinds of terrorist activities taking place}
+```{r Plot 2: Frequency of attack types}
 # Plotting terrorist activity types
 recent_terrorism <- recent_terrorism %>%
   mutate(attack_type = factor(attack_type, levels = names(sort(table(attack_type), decreasing = TRUE))))
@@ -153,7 +155,7 @@ The most popular terrorist attack style is armed assault, followed by bombings/e
 
 ### Attack targets: Nigeria
 
-```{r Targets of terrorist attacks}
+```{r Plot 3: Attack targets}
 # Plotting terrorist attack targets
 recent_terrorism <- recent_terrorism %>%
   mutate(target_category = factor(target_category, levels = names(sort(table(target_category), decreasing = TRUE))))
@@ -184,7 +186,7 @@ Private citizens and property are disproportionately targeted by terrorists, sug
 
 ### Attack success rate: Nigeria
 
-```{r Success rate of attacks}
+```{r Plot 4: Attack success rate}
 # Plotting the success rate of attacks
 recent_terrorism$success <- factor(recent_terrorism$success, 
                                    levels = c(0, 1), 
@@ -225,14 +227,14 @@ Of the attacks that are carried out/registered, the vast majority (91%) are succ
 
 ### Attack distribution: Nigeria
 
-```{r Plotting attacks as points across Nigeria}
+```{r Plot 5: Attacks across Nigeria}
 # Plotting points of attacks across the country
 point_of_attacks <- ggplot() +
   geom_sf(data = nigeria, fill = NA, color = "black", size = 1.5) + 
   geom_sf(data = states, fill = NA, color = "lightgrey") +
   geom_sf(data = recent_terrorism, color = "#ef6030", size = 0.1) +
   theme_minimal(base_family = "Avenir") +                                       
-  labs(title = "2010-2020 Terrorist Attacks in Nigeria") +
+  labs(title = "Terrorist attacks across Nigeria, 2010-2020") +
   theme(
     panel.grid = element_blank(),        
     axis.title = element_blank(),        
@@ -291,7 +293,8 @@ states_terrorism <- states_terrorism %>%
 
 # Convert the geometry column back to sf format if it's not already
 states_terrorism <- st_as_sf(states_terrorism, wkt = "geometry")
-
+```
+```{r Plot 6: Attacks per 10,000 people}
 # Plotting the rate of attacks 
 rate_of_attacks <- ggplot(states_terrorism) +
   geom_sf(aes(fill = attacks_per_10000)) +
@@ -312,7 +315,7 @@ ggsave("rate_of_attacks.png", plot = rate_of_attacks, width = 10, height = 10, d
 
 And to plot this as a bar chart:
 
-```{r Plotting attacks by state}
+```{r Plot 7: Attack rate by state}
 states_terrorism <- states_terrorism %>%
   mutate(state = factor(state, levels = state[order(-attacks_per_10000)]))
 
@@ -377,7 +380,8 @@ borno_LGAs$population <- sapply(1:nrow(borno_LGAs), function(i) calculate_popula
 
 # Making the population count a whole number
 borno_LGAs$population <- round(borno_LGAs$population, 0)
-
+```
+```{r Plot 8: Population across Borno LGAs}
 # Plotting the population per LGA
 pop_LGA <- ggplot(data = borno_LGAs) +
   geom_sf(aes(fill = population)) +
@@ -402,7 +406,7 @@ Finally, I want to look at the distribution of terrorist attacks relative to the
 
 ### Attack distribution: Borno
 
-```{r Plotting terrorist attack points across Borno}
+```{r Plot 9: Attacks in Borno}
 # Obtaining only points in Borno
 borno_terrorism <- recent_terrorism %>% filter(state == "Borno")
 
@@ -458,7 +462,8 @@ borno_LGAs <- borno_LGAs %>%
 
 # Calculating a rate of attacks per 1,000 people
 borno_LGAs$attack_per_1000 <- (borno_LGAs$attack_count / borno_LGAs$population) * 1000
-
+```
+```{r Plot 10: Attack rate per 1,000 people in LGAs}
 # Plotting this as a thematic map
 rate_borno <- ggplot(borno_LGAs) +
   geom_sf(aes(fill = attack_per_1000)) +
@@ -479,7 +484,7 @@ ggsave("rate_borno.png", plot = rate_borno, width = 10, height = 5, dpi = 300)
 
 And finally, to plot this as a bar chart.
 
-```{r Graphically representing attacks by state}
+```{r Plot 11: Attack rate by LGA}
 borno_LGAs <- borno_LGAs %>%
   mutate(LGA = factor(LGA, levels = LGA[order(-attack_per_1000)]))
 
@@ -523,7 +528,9 @@ borno_LGAs$risk_ratio <- round(borno_LGAs$risk_ratio, 2)
 borno_LGAs$risk_expectation <- ifelse(borno_LGAs$risk_ratio < 1, "lower", "higher")
 
 borno_LGAs$normalized_risk_ratio <- (borno_LGAs$risk_ratio - min_risk_ratio) / (max_risk_ratio - min_risk_ratio)
+```
 
+```{r Plot 12: Expected risk}
 # Plotting this
 expected_risk <- ggplot(borno_LGAs) +
   geom_sf(aes(fill = risk_expectation), color = "black") +
@@ -553,3 +560,4 @@ plot(expected_risk)
 
 ggsave("expected_risk.png", plot = expected_risk, width = 15, height = 15, dpi = 300)
 ```
+
