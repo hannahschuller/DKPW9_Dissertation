@@ -594,12 +594,10 @@ high_risk_population[high_risk_population == 0] <- NA
 writeRaster(high_risk_population, 'high_risk_population.tif', format='GTiff', overwrite=TRUE)
 
 # Plotting the resulting raster
-high_risk_population <- tm_shape(high_risk_population) +
-  tm_raster(style = 'cont', title = "Population density", palette = 'Reds') +
-  tm_shape(borno) + 
-  tm_polygons(alpha = 0, border.col = "grey") +
-  tm_shape(borno_LGAs) + 
-  tm_borders(col = "black", lwd = 0.3) +
+high_risk_population_plot <- tm_shape(borno) +      
+  tm_fill(col = "black", border.col = NA) +      
+  tm_shape(high_risk_population) +
+  tm_raster(style = 'cont', title = "Population density", palette = 'YlOrRd') +
   tm_scale_bar(position = c("right", "bottom")) + 
   tm_layout(
     legend.text.size = 0.7, 
@@ -612,9 +610,9 @@ high_risk_population <- tm_shape(high_risk_population) +
     legend.title.fontfamily = "Avenir"
   )
 
-high_risk_population
+high_risk_population_plot
 
-tmap_save(high_risk_population, filename = "high_risk_population.png", width = 2000, height = 2000, dpi = 300)
+tmap_save(high_risk_population_plot, filename = "high_risk_population.png", width = 2000, height = 2000, dpi = 300)
 ```
 
 Now I want to look at the percentage of each LGAs population who are at risk of terrorist attacks so I can consider relative risk across the state.
@@ -634,19 +632,19 @@ borno_LGAs <- borno_LGAs %>%
 # Plot the results
 pop_at_risk <- ggplot(borno_LGAs) +
   geom_sf(aes(fill = percentage_high_risk)) +
-  scale_fill_viridis_c(name = "% at risk", 
-                       breaks = seq(0, 100, by = 10), 
-                       labels = c("0", "10", "20", "30", "40", "50", "60", "70", "80", "90", "100"),
+  scale_fill_gradient(low = "white", high = "#6605F6", name = "% of total at risk", 
+                       breaks = seq(0, 100, by = 20), 
+                       labels = c("0", "20", "40", "60", "80", "100"),
                        limits = c(0, 100)) +
   theme_minimal(base_family = "Avenir") +
-  labs(title = "High-risk population by LGA",
-       fill = "") +
+  labs(title = "Percent of population at high risk by LGA",
+       fill = "%") +
   theme(
     panel.grid = element_blank(),
     axis.title = element_blank(),
     axis.text = element_blank(),
-    axis.ticks = element_blank()
-  )
+    axis.ticks = element_blank()) +
+    annotation_scale(location = "br", width_hint = 0.2) 
 
 pop_at_risk
 
@@ -678,12 +676,10 @@ high_risk_child_population[high_risk_child_population == 0] <- NA
 writeRaster(high_risk_child_population, 'high_risk_child_population.tif', format='GTiff', overwrite=TRUE)
 
 # Plotting the resulting raster
-high_risk_child_pop <- tm_shape(high_risk_child_population) +
-  tm_raster(style = 'cont', title = "Population density <15", palette = 'Purples') +
-  tm_shape(borno) + 
-  tm_polygons(alpha = 0, border.col = "grey") +
-  tm_shape(borno_LGAs) + 
-  tm_borders(col = "black", lwd = 0.3) +
+high_risk_child_pop_plot <- tm_shape(borno) +      
+  tm_fill(col = "black", border.col = NA) +      
+  tm_shape(high_risk_child_population) +
+  tm_raster(style = 'cont', title = "Population <15 density", palette = 'YlOrRd') +
   tm_scale_bar(position = c("right", "bottom")) + 
   tm_layout(
     legend.text.size = 0.7, 
@@ -696,9 +692,9 @@ high_risk_child_pop <- tm_shape(high_risk_child_population) +
     legend.title.fontfamily = "Avenir"
   )
 
-high_risk_child_pop
+high_risk_child_pop_plot
 
-tmap_save(high_risk_child_pop, filename = "high_risk_child_pop.png", width = 2000, height = 2000, dpi = 300)
+tmap_save(high_risk_child_pop_plot, filename = "high_risk_child_pop.png", width = 2000, height = 2000, dpi = 300)
 ```
 
 And now to look at the percentage of the under 15 population per LGA that are at a high risk of terrorist attacks:
@@ -715,19 +711,19 @@ borno_LGAs <- borno_LGAs %>%
 # Plot the results
 child_pop_at_risk <- ggplot(borno_LGAs) +
   geom_sf(aes(fill = percentage_high_risk_child)) +
-  scale_fill_viridis_c(name = "% at risk", 
-                       breaks = seq(0, 100, by = 10), 
-                       labels = c("0", "10", "20", "30", "40", "50", "60", "70", "80", "90", "100"),
+  scale_fill_gradient(low = "white", high = "#6605F6", name = "% of total at risk", 
+                       breaks = seq(0, 100, by = 20), 
+                       labels = c("0", "20", "40", "60", "80", "100"),
                        limits = c(0, 100)) +
   theme_minimal(base_family = "Avenir") +
-  labs(title = "High risk population (<15) by LGA",
+  labs(title = "Percent of population under 15 at high risk by LGA",
        fill = "%") +
   theme(
     panel.grid = element_blank(),
     axis.title = element_blank(),
     axis.text = element_blank(),
-    axis.ticks = element_blank()
-  )
+    axis.ticks = element_blank()) +
+    annotation_scale(location = "br", width_hint = 0.2)  
 
 child_pop_at_risk
 
