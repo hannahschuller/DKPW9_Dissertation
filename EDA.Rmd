@@ -566,4 +566,42 @@ plot(expected_risk)
 
 ggsave("expected_risk.png", plot = expected_risk, width = 15, height = 15, dpi = 300)
 ```
+```{r Plot 13: Borno in Nigeria}
+# This is a plot for my introduction
+nigeria_plot <- ggplot() +
+  geom_sf(data = nigeria, fill = NA, color = "black", size = 1) +  
+  geom_sf(data = states, fill = "#F7F5F5", color = "black", size = 0.5) +  
+  geom_sf(data = borno, fill = "#ef6030", color = "black", size = 0.5) +  
+  geom_sf_text(data = states, aes(label = state), size = 4, family = "Avenir") +    
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_blank(),  
+    panel.grid.minor = element_blank(),  
+    axis.ticks = element_blank(),        
+    axis.text = element_blank(),      
+    axis.title = element_blank()         
+  )
+
+ggsave("nigeria_plot.png", plot = nigeria_plot, width = 15, height = 15, dpi = 300)
+```
+
+```{r Plot 14: Borno state}
+# This is also a plot for my introduction
+borno_plot <- ggplot() +
+  geom_sf(data = borno, fill = NA, color = "black", size = 0.5) +  
+  geom_sf(data = borno_LGAs, fill = "#F5C5B5", color = "black", size = 0.5) + 
+  geom_sf_text(data = borno_LGAs, aes(label = LGA), size = 3, family = "Avenir") +    
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_blank(),  
+    panel.grid.minor = element_blank(),  
+    axis.ticks = element_blank(),        
+    axis.text = element_blank(),      
+    axis.title = element_blank()         
+  ) +
+  annotation_scale(location = "br", width_hint = 0.3)  # Add this line for the scale bar
+
+
+ggsave("borno_plot.png", plot = borno_plot, width = 15, height = 15, dpi = 300)
+```
 
