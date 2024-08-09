@@ -372,28 +372,6 @@ exp(coefficients(log_model))
 # Extracting McFadden's R2
 pR2(log_model)
 ```
-One unit increase in population increases the odds of an attack by approx. 0.9%.
-
-One unit increase in male literacy increases the odds of an attack by approx. 781%
-
-One unit increase in female literacy decreases the odds of an attack by approx. 66%
-
-One unit increase in school children decreases the odds of an attack by approx. 5.9%
-
-One unit increase in poverty decreases the odds of an attack by approx. 92.3%
-
-One unit increase in urban v rural increases the odds of an attack by approx. 1819%
-
-One unit increase in topography slightly increases the odds of an attack by approx. 0.07%
-
-One unit increase in roads decreases the odds of an attack by approx. 14.2%
-
-One unit increase in educational facilities decreases the odds of an attack by approx. 36.9%
-
-One unit increase in mosques decreases the odds of an attack by approx. 31%
-
-The pseudo-R2 values indicate the model has a good fit and explains a substantial portion of the variance in the data.
-
 Thus broadly, the model performs well, with several significant predictors and good fit statistics. This means that for my MAXENT model I will include all but topography as this is not statistically significant
 
 ## MAXENT analysis
@@ -629,13 +607,16 @@ borno_LGAs$high_risk_population <- exact_extract(high_risk_population, borno_LGA
 borno_LGAs <- borno_LGAs %>%
   mutate(percentage_high_risk = (high_risk_population / total_population) * 100)
 
+# Remove the decimal points
+borno_LGAs$percentage_high_risk <- floor(borno_LGAs$percentage_high_risk)
+
 # Plot the results
 pop_at_risk <- ggplot(borno_LGAs) +
   geom_sf(aes(fill = percentage_high_risk)) +
   scale_fill_gradient(low = "white", high = "#6605F6", name = "% of total at risk", 
-                       breaks = seq(0, 100, by = 20), 
-                       labels = c("0", "20", "40", "60", "80", "100"),
-                       limits = c(0, 100)) +
+                      breaks = seq(0, 100, by = 20), 
+                      labels = c("0", "20", "40", "60", "80", "100"),
+                      limits = c(0, 100)) +
   theme_minimal(base_family = "Avenir") +
   labs(title = "Percent of population at high risk by LGA",
        fill = "%") +
@@ -644,7 +625,9 @@ pop_at_risk <- ggplot(borno_LGAs) +
     axis.title = element_blank(),
     axis.text = element_blank(),
     axis.ticks = element_blank()) +
-    annotation_scale(location = "br", width_hint = 0.2) 
+  annotation_scale(location = "br", width_hint = 0.2) +
+
+  geom_sf_text(aes(label = round(percentage_high_risk)), size = 3, family = "Avenir", color = "black")
 
 pop_at_risk
 
@@ -708,13 +691,16 @@ borno_LGAs$high_risk_child_population <- exact_extract(high_risk_child_populatio
 borno_LGAs <- borno_LGAs %>%
   mutate(percentage_high_risk_child = (high_risk_child_population / total_child_population) * 100)
 
+# Remove the decimal points
+borno_LGAs$percentage_high_risk_child <- floor(borno_LGAs$percentage_high_risk_child)
+
 # Plot the results
 child_pop_at_risk <- ggplot(borno_LGAs) +
   geom_sf(aes(fill = percentage_high_risk_child)) +
   scale_fill_gradient(low = "white", high = "#6605F6", name = "% of total at risk", 
-                       breaks = seq(0, 100, by = 20), 
-                       labels = c("0", "20", "40", "60", "80", "100"),
-                       limits = c(0, 100)) +
+                      breaks = seq(0, 100, by = 20), 
+                      labels = c("0", "20", "40", "60", "80", "100"),
+                      limits = c(0, 100)) +
   theme_minimal(base_family = "Avenir") +
   labs(title = "Percent of population under 15 at high risk by LGA",
        fill = "%") +
@@ -723,7 +709,9 @@ child_pop_at_risk <- ggplot(borno_LGAs) +
     axis.title = element_blank(),
     axis.text = element_blank(),
     axis.ticks = element_blank()) +
-    annotation_scale(location = "br", width_hint = 0.2)  
+  annotation_scale(location = "br", width_hint = 0.2) +
+  
+  geom_sf_text(aes(label = round(percentage_high_risk_child)), size = 3, family = "Avenir", color = "black")
 
 child_pop_at_risk
 
